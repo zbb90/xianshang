@@ -265,6 +265,7 @@ def init_db():
             name TEXT NOT NULL,
             department TEXT NOT NULL,
             position TEXT NOT NULL,
+            group_name TEXT,
             username TEXT UNIQUE,
             email TEXT UNIQUE,
             password_hash TEXT,
@@ -276,6 +277,10 @@ def init_db():
     # 为现有用户添加默认认证信息（如果列不存在）
     cursor.execute("PRAGMA table_info(users)")
     columns = [column[1] for column in cursor.fetchall()]
+    
+    # 添加group_name列（如果不存在）
+    if 'group_name' not in columns:
+        cursor.execute('ALTER TABLE users ADD COLUMN group_name TEXT')
     
     if 'username' not in columns:
         cursor.execute('ALTER TABLE users ADD COLUMN username TEXT')
@@ -407,12 +412,10 @@ def login_page():
             
             <form id="loginForm">
                 <div class="mb-3">
-                    <label for="username" class="form-label">用户名/邮箱</label>
-                    <input type="text" class="form-control" id="username" required>
-                </div>
-                <div class="mb-3">
-                    <label for="password" class="form-label">密码</label>
-                    <input type="password" class="form-control" id="password" required>
+                    <label for="user_select" class="form-label">选择用户</label>
+                    <select class="form-control" id="user_select" required>
+                        <option value="">请选择您的姓名</option>
+                    </select>
                 </div>
                 <button type="submit" class="btn btn-primary w-100 mb-3">登录</button>
             </form>
@@ -424,12 +427,36 @@ def login_page():
     </div>
 
     <script>
+        // 页面加载时获取用户列表
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('/api/users');
+                const users = await response.json();
+                
+                const select = document.getElementById('user_select');
+                users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = `${user.name} (${user.group_name})`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('获取用户列表失败:', error);
+            }
+        });
+
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
+            const userId = document.getElementById('user_select').value;
             const messageDiv = document.getElementById('message');
+            
+            if (!userId) {
+                messageDiv.className = 'alert alert-warning';
+                messageDiv.textContent = '请选择用户';
+                messageDiv.style.display = 'block';
+                return;
+            }
             
             try {
                 const response = await fetch('/api/login', {
@@ -437,7 +464,7 @@ def login_page():
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ user_id: userId })
                 });
                 
                 const result = await response.json();
@@ -500,42 +527,19 @@ def register_page():
             <div id="message" class="alert" style="display: none;"></div>
             
             <form id="registerForm">
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="username" class="form-label">用户名</label>
-                        <input type="text" class="form-control" id="username" required>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="email" class="form-label">邮箱</label>
-                        <input type="email" class="form-control" id="email" required>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label for="password" class="form-label">密码</label>
-                    <input type="password" class="form-control" id="password" required minlength="6">
-                </div>
                 <div class="mb-3">
                     <label for="name" class="form-label">姓名</label>
-                    <input type="text" class="form-control" id="name" required>
+                    <input type="text" class="form-control" id="name" required placeholder="请输入您的真实姓名">
                 </div>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="department" class="form-label">部门</label>
-                        <select class="form-control" id="department" required>
-                            <option value="">选择部门</option>
-                            <option value="销售部">销售部</option>
-                            <option value="市场部">市场部</option>
-                            <option value="技术部">技术部</option>
-                            <option value="运营部">运营部</option>
-                            <option value="财务部">财务部</option>
-                            <option value="人事部">人事部</option>
-                            <option value="管理层">管理层</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="position" class="form-label">职位</label>
-                        <input type="text" class="form-control" id="position" required placeholder="如：业务员、经理、专员等">
-                    </div>
+                <div class="mb-3">
+                    <label for="group" class="form-label">组别</label>
+                    <select class="form-control" id="group" required>
+                        <option value="">请选择组别</option>
+                        <option value="稽核一组">稽核一组</option>
+                        <option value="稽核二组">稽核二组</option>
+                        <option value="稽核三组">稽核三组</option>
+                        <option value="稽核四组">稽核四组</option>
+                    </select>
                 </div>
                 <button type="submit" class="btn btn-success w-100 mb-3">注册</button>
             </form>
@@ -551,12 +555,8 @@ def register_page():
             e.preventDefault();
             
             const formData = {
-                username: document.getElementById('username').value,
-                email: document.getElementById('email').value,
-                password: document.getElementById('password').value,
                 name: document.getElementById('name').value,
-                department: document.getElementById('department').value,
-                position: document.getElementById('position').value
+                group: document.getElementById('group').value
             };
             
             const messageDiv = document.getElementById('message');
@@ -2164,28 +2164,45 @@ def health_check():
 def register():
     data = request.get_json()
     
-    required_fields = ['username', 'email', 'password', 'name', 'department', 'position']
+    required_fields = ['name', 'group']
     for field in required_fields:
         if not data.get(field):
             return jsonify({'error': f'缺少必要字段: {field}'}), 400
     
-    # 密码加密
-    password_hash = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
+    # 验证组别是否有效
+    valid_groups = ['稽核一组', '稽核二组', '稽核三组', '稽核四组']
+    if data['group'] not in valid_groups:
+        return jsonify({'error': '无效的组别'}), 400
     
     conn = sqlite3.connect('enhanced_timesheet.db')
     cursor = conn.cursor()
     
     try:
+        # 检查是否已存在相同姓名和组别的用户
         cursor.execute('''
-            INSERT INTO users (username, email, password_hash, name, department, position)
+            SELECT id FROM users WHERE name = ? AND group_name = ?
+        ''', (data['name'], data['group']))
+        
+        existing_user = cursor.fetchone()
+        if existing_user:
+            conn.close()
+            return jsonify({'error': '该姓名在此组别中已存在'}), 400
+        
+        # 生成唯一的用户名（姓名+组别+时间戳）
+        import time
+        username = f"{data['name']}_{data['group']}_{int(time.time())}"
+        
+        # 插入新用户（不需要密码）
+        cursor.execute('''
+            INSERT INTO users (username, name, group_name, department, position, email)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (
-            data['username'],
-            data['email'],
-            password_hash.decode('utf-8'),
+            username,
             data['name'],
-            data['department'],
-            data['position']
+            data['group'],
+            data['group'],  # 部门设为组别
+            '稽核员',       # 默认职位
+            f"{username}@company.com"  # 生成默认邮箱
         ))
         
         user_id = cursor.lastrowid
@@ -2195,61 +2212,89 @@ def register():
         return jsonify({
             'success': True,
             'message': '注册成功',
-            'user_id': user_id
+            'user_id': user_id,
+            'username': username
         }), 201
         
-    except sqlite3.IntegrityError as e:
+    except sqlite3.Error as e:
         conn.close()
-        if 'username' in str(e):
-            return jsonify({'error': '用户名已存在'}), 400
-        elif 'email' in str(e):
-            return jsonify({'error': '邮箱已被注册'}), 400
-        else:
-            return jsonify({'error': '注册失败，请检查输入信息'}), 400
+        return jsonify({'error': f'数据库错误: {str(e)}'}), 500
+
+# 获取用户列表API
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    conn = sqlite3.connect('enhanced_timesheet.db')
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            SELECT id, name, group_name FROM users 
+            WHERE is_active = 1 
+            ORDER BY group_name, name
+        ''')
+        
+        users = []
+        for row in cursor.fetchall():
+            users.append({
+                'id': row[0],
+                'name': row[1],
+                'group_name': row[2] or '未分组'
+            })
+        
+        conn.close()
+        return jsonify(users)
+        
+    except sqlite3.Error as e:
+        conn.close()
+        return jsonify({'error': f'数据库错误: {str(e)}'}), 500
 
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
     
-    if not data.get('username') or not data.get('password'):
-        return jsonify({'error': '用户名和密码不能为空'}), 400
+    if not data.get('user_id'):
+        return jsonify({'error': '请选择用户'}), 400
     
     conn = sqlite3.connect('enhanced_timesheet.db')
     cursor = conn.cursor()
     
-    cursor.execute('''
-        SELECT id, password_hash, name, department, position, is_active
-        FROM users WHERE username = ? OR email = ?
-    ''', (data['username'], data['username']))
-    
-    user = cursor.fetchone()
-    conn.close()
-    
-    if not user:
-        return jsonify({'error': '用户不存在'}), 401
-    
-    if not user[5]:  # is_active
-        return jsonify({'error': '账户已被禁用'}), 401
-    
-    if bcrypt.checkpw(data['password'].encode('utf-8'), user[1].encode('utf-8')):
+    try:
+        cursor.execute('''
+            SELECT id, name, department, position, group_name, is_active
+            FROM users WHERE id = ?
+        ''', (data['user_id'],))
+        
+        user = cursor.fetchone()
+        conn.close()
+        
+        if not user:
+            return jsonify({'error': '用户不存在'}), 401
+        
+        if not user[5]:  # is_active
+            return jsonify({'error': '账户已被禁用'}), 401
+        
+        # 设置session
         session['user_id'] = user[0]
-        session['username'] = data['username']
-        session['name'] = user[2]
-        session['department'] = user[3]
-        session['position'] = user[4]
+        session['name'] = user[1]
+        session['department'] = user[2]
+        session['position'] = user[3]
+        session['group_name'] = user[4]
         
         return jsonify({
             'success': True,
             'message': '登录成功',
             'user': {
                 'id': user[0],
-                'name': user[2],
-                'department': user[3],
-                'position': user[4]
+                'name': user[1],
+                'department': user[2],
+                'position': user[3],
+                'group_name': user[4]
             }
         })
-    else:
-        return jsonify({'error': '密码错误'}), 401
+        
+    except sqlite3.Error as e:
+        conn.close()
+        return jsonify({'error': f'数据库错误: {str(e)}'}), 500
 
 @app.route('/api/logout', methods=['POST'])
 def logout():
