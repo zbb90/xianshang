@@ -1,0 +1,57 @@
+{
+  "name": "智能工时表管理系统",
+  "description": "一个功能完整的工时管理系统，支持门店管理、路线规划、数据导出等功能",
+  "repository": "https://github.com/your-username/timesheet-management-system",
+  "logo": "https://raw.githubusercontent.com/your-username/timesheet-management-system/main/logo.png",
+  "keywords": [
+    "flask",
+    "timesheet",
+    "management",
+    "python",
+    "sqlite",
+    "amap"
+  ],
+  "env": {
+    "SECRET_KEY": {
+      "description": "Flask应用密钥，用于会话加密",
+      "generator": "secret",
+      "required": true
+    },
+    "AMAP_API_KEY": {
+      "description": "高德地图API密钥",
+      "required": true
+    },
+    "AMAP_SECRET_KEY": {
+      "description": "高德地图API签名密钥",
+      "required": true
+    },
+    "FLASK_ENV": {
+      "description": "Flask运行环境",
+      "value": "production",
+      "required": false
+    },
+    "DATABASE_URL": {
+      "description": "数据库连接URL",
+      "value": "sqlite:///enhanced_timesheet.db",
+      "required": false
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "stack": "heroku-22",
+  "addons": [
+    {
+      "plan": "heroku-postgresql:mini",
+      "as": "DATABASE"
+    }
+  ]
+}
