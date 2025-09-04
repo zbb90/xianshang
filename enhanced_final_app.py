@@ -412,10 +412,22 @@ def login_page():
             
             <form id="loginForm">
                 <div class="mb-3">
-                    <label for="user_select" class="form-label">选择用户</label>
-                    <select class="form-control" id="user_select" required>
-                        <option value="">请选择您的姓名</option>
+                    <label for="name" class="form-label">姓名</label>
+                    <input type="text" class="form-control" id="name" required placeholder="请输入您的姓名">
+                </div>
+                <div class="mb-3">
+                    <label for="group" class="form-label">组别</label>
+                    <select class="form-control" id="group" required>
+                        <option value="">请选择组别</option>
+                        <option value="稽核一组">稽核一组</option>
+                        <option value="稽核二组">稽核二组</option>
+                        <option value="稽核三组">稽核三组</option>
+                        <option value="稽核四组">稽核四组</option>
                     </select>
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">密码</label>
+                    <input type="password" class="form-control" id="password" required>
                 </div>
                 <button type="submit" class="btn btn-primary w-100 mb-3">登录</button>
             </form>
@@ -427,33 +439,17 @@ def login_page():
     </div>
 
     <script>
-        // 页面加载时获取用户列表
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                const response = await fetch('/api/users');
-                const users = await response.json();
-                
-                const select = document.getElementById('user_select');
-                users.forEach(user => {
-                    const option = document.createElement('option');
-                    option.value = user.id;
-                    option.textContent = `${user.name} (${user.group_name})`;
-                    select.appendChild(option);
-                });
-            } catch (error) {
-                console.error('获取用户列表失败:', error);
-            }
-        });
-
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const userId = document.getElementById('user_select').value;
+            const name = document.getElementById('name').value;
+            const group = document.getElementById('group').value;
+            const password = document.getElementById('password').value;
             const messageDiv = document.getElementById('message');
             
-            if (!userId) {
+            if (!name || !group || !password) {
                 messageDiv.className = 'alert alert-warning';
-                messageDiv.textContent = '请选择用户';
+                messageDiv.textContent = '请填写完整信息';
                 messageDiv.style.display = 'block';
                 return;
             }
@@ -464,7 +460,11 @@ def login_page():
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ user_id: userId })
+                    body: JSON.stringify({ 
+                        name: name,
+                        group: group,
+                        password: password 
+                    })
                 });
                 
                 const result = await response.json();
@@ -541,6 +541,10 @@ def register_page():
                         <option value="稽核四组">稽核四组</option>
                     </select>
                 </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">密码</label>
+                    <input type="password" class="form-control" id="password" required minlength="6" placeholder="请设置登录密码（至少6位）">
+                </div>
                 <button type="submit" class="btn btn-success w-100 mb-3">注册</button>
             </form>
             
@@ -556,7 +560,8 @@ def register_page():
             
             const formData = {
                 name: document.getElementById('name').value,
-                group: document.getElementById('group').value
+                group: document.getElementById('group').value,
+                password: document.getElementById('password').value
             };
             
             const messageDiv = document.getElementById('message');
@@ -2164,15 +2169,22 @@ def health_check():
 def register():
     data = request.get_json()
     
-    required_fields = ['name', 'group']
+    required_fields = ['name', 'group', 'password']
     for field in required_fields:
         if not data.get(field):
             return jsonify({'error': f'缺少必要字段: {field}'}), 400
+    
+    # 验证密码长度
+    if len(data['password']) < 6:
+        return jsonify({'error': '密码长度至少6位'}), 400
     
     # 验证组别是否有效
     valid_groups = ['稽核一组', '稽核二组', '稽核三组', '稽核四组']
     if data['group'] not in valid_groups:
         return jsonify({'error': '无效的组别'}), 400
+    
+    # 密码加密
+    password_hash = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
     
     conn = sqlite3.connect('enhanced_timesheet.db')
     cursor = conn.cursor()
@@ -2192,17 +2204,18 @@ def register():
         import time
         username = f"{data['name']}_{data['group']}_{int(time.time())}"
         
-        # 插入新用户（不需要密码）
+        # 插入新用户
         cursor.execute('''
-            INSERT INTO users (username, name, group_name, department, position, email)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO users (username, name, group_name, department, position, email, password_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
             username,
             data['name'],
             data['group'],
             data['group'],  # 部门设为组别
             '稽核员',       # 默认职位
-            f"{username}@company.com"  # 生成默认邮箱
+            f"{username}@company.com",  # 生成默认邮箱
+            password_hash.decode('utf-8')
         ))
         
         user_id = cursor.lastrowid
@@ -2252,26 +2265,32 @@ def get_users():
 def login():
     data = request.get_json()
     
-    if not data.get('user_id'):
-        return jsonify({'error': '请选择用户'}), 400
+    required_fields = ['name', 'group', 'password']
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({'error': f'缺少必要字段: {field}'}), 400
     
     conn = sqlite3.connect('enhanced_timesheet.db')
     cursor = conn.cursor()
     
     try:
         cursor.execute('''
-            SELECT id, name, department, position, group_name, is_active
-            FROM users WHERE id = ?
-        ''', (data['user_id'],))
+            SELECT id, name, department, position, group_name, is_active, password_hash
+            FROM users WHERE name = ? AND group_name = ?
+        ''', (data['name'], data['group']))
         
         user = cursor.fetchone()
         conn.close()
         
         if not user:
-            return jsonify({'error': '用户不存在'}), 401
+            return jsonify({'error': '用户不存在或组别不匹配'}), 401
         
         if not user[5]:  # is_active
             return jsonify({'error': '账户已被禁用'}), 401
+        
+        # 验证密码
+        if not user[6] or not bcrypt.checkpw(data['password'].encode('utf-8'), user[6].encode('utf-8')):
+            return jsonify({'error': '密码错误'}), 401
         
         # 设置session
         session['user_id'] = user[0]
