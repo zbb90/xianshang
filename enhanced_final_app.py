@@ -7,6 +7,7 @@
 
 from flask import Flask, request, jsonify, send_file, make_response, session, redirect, url_for
 import json
+import os
 import sqlite3
 from datetime import datetime, timedelta
 import math
@@ -25,11 +26,16 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
 app = Flask(__name__)
-# 设置会话密钥（生产环境应使用环境变量）
-app.secret_key = secrets.token_hex(32)
+# 设置会话密钥（优先使用环境变量）
+app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 
 # 导入配置
-from config import AMAP_API_KEY, AMAP_SECRET_KEY
+try:
+    from config import AMAP_API_KEY, AMAP_SECRET_KEY
+except ImportError:
+    # 如果config.py不存在或导入失败，直接从环境变量获取
+    AMAP_API_KEY = os.environ.get('AMAP_API_KEY', 'your_amap_api_key_here')
+    AMAP_SECRET_KEY = os.environ.get('AMAP_SECRET_KEY', 'your_amap_secret_key_here')
 
 # 高德地图API配置
 AMAP_BASE_URL = 'https://restapi.amap.com/v3'
