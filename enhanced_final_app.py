@@ -493,6 +493,14 @@ def login_page():
 </html>
     '''
 
+@app.route('/version')
+def version_info():
+    return jsonify({
+        'version': 'v2.0',
+        'description': '简化注册系统 - 姓名+组别+密码',
+        'timestamp': datetime.now().isoformat()
+    })
+
 @app.route('/register')
 def register_page():
     return '''
@@ -503,6 +511,9 @@ def register_page():
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>用户注册 - 智能工时表管理系统</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <style>
         .register-container {
             max-width: 500px;
@@ -523,6 +534,7 @@ def register_page():
         <div class="register-container bg-white">
             <h2 class="system-title">🚀 智能工时表管理系统</h2>
             <h4 class="text-center mb-4">用户注册</h4>
+            <p class="text-center text-muted small">版本: v2.0 - 简化注册</p>
             
             <div id="message" class="alert" style="display: none;"></div>
             
