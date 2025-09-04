@@ -81,3 +81,23 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Excel files and large documents (exclude from repository)
+工时表/
+*.xlsx
+*.xls
+!门店信息导入模板.xlsx
+
+# Large files
+*.zip
+*.tar.gz
+*.rar
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Railway
+.railway/
