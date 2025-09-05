@@ -103,7 +103,7 @@ def admin_required(f):
         user = cursor.fetchone()
         conn.close()
         
-        if not user or user[0] not in ['管理员', '管理层']:
+        if not user or user[0] != '管理员':
             return jsonify({'error': '权限不足'}), 403
         return f(*args, **kwargs)
     return decorated_function
@@ -277,7 +277,7 @@ def register_page():
 </head>
 <body>
     <div class="register-card">
-        <div class="version-badge">V4.0 NEW</div>
+        <div class="version-badge">V4.1 部门修复</div>
         
         <div class="header">
             <div class="logo">🚀 智能工时表管理系统</div>
@@ -314,13 +314,10 @@ def register_page():
                     <label class="form-label">部门</label>
                     <select class="form-select" id="department" required>
                         <option value="">选择部门</option>
-                        <option value="销售部">销售部</option>
-                        <option value="市场部">市场部</option>
-                        <option value="技术部">技术部</option>
-                        <option value="运营部">运营部</option>
-                        <option value="财务部">财务部</option>
-                        <option value="人事部">人事部</option>
-                        <option value="管理层">管理层</option>
+                        <option value="稽核一组">稽核一组</option>
+                        <option value="稽核二组">稽核二组</option>
+                        <option value="稽核三组">稽核三组</option>
+                        <option value="稽核四组">稽核四组</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -843,7 +840,7 @@ def dashboard():
                 document.getElementById('userDept').textContent = user.department;
 
                 // 根据权限显示/隐藏管理功能
-                if (user.position !== '管理员' && user.position !== '管理层') {
+                if (user.position !== '管理员') {
                     document.querySelectorAll('.admin-only').forEach(el => {
                         el.style.display = 'none';
                     });
@@ -951,8 +948,8 @@ def health_check():
         return jsonify({
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
-            'version': '4.0.0',
-            'build': 'force-redeploy-2025-09-05'
+            'version': '4.1.0',
+            'build': 'department-fix-2025-09-05'
         })
     except Exception as e:
         return jsonify({
