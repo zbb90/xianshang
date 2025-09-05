@@ -279,7 +279,7 @@ def register_page():
 </head>
 <body>
     <div class="register-card">
-        <div class="version-badge">V4.2 路程计算</div>
+        <div class="version-badge">V4.2.1 FINAL</div>
         
         <div class="header">
             <div class="logo">🚀 智能工时表管理系统</div>
@@ -1155,8 +1155,8 @@ def health_check():
         return jsonify({
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
-            'version': '4.2.0',
-            'build': 'distance-calculation-2025-09-05'
+            'version': '4.2.1',
+            'build': 'force-railway-deploy-2025-09-05-final'
         })
     except Exception as e:
         return jsonify({
