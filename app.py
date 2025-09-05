@@ -952,7 +952,7 @@ def health_check():
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
             'version': '4.0.0',
-            'build': 'clean-rebuild'
+            'build': 'force-redeploy-2025-09-05'
         })
     except Exception as e:
         return jsonify({
