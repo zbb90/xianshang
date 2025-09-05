@@ -333,6 +333,13 @@ def init_db():
             notes TEXT,
             api_used BOOLEAN DEFAULT FALSE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            -- 新增字段支持简化工时录入
+            store_code TEXT,
+            store_name TEXT,
+            work_date DATE,
+            start_time TEXT,
+            end_time TEXT,
+            work_content TEXT,
             FOREIGN KEY (user_id) REFERENCES users (id),
             FOREIGN KEY (location_from_id) REFERENCES locations (id),
             FOREIGN KEY (location_to_id) REFERENCES locations (id),
@@ -340,6 +347,23 @@ def init_db():
             FOREIGN KEY (store_to_id) REFERENCES stores (id)
         )
     ''')
+    
+    # 检查并添加新字段
+    cursor.execute("PRAGMA table_info(timesheet_records)")
+    columns = [col[1] for col in cursor.fetchall()]
+    
+    new_columns = [
+        ('store_code', 'TEXT'),
+        ('store_name', 'TEXT'),
+        ('work_date', 'DATE'),
+        ('start_time', 'TEXT'),
+        ('end_time', 'TEXT'),
+        ('work_content', 'TEXT')
+    ]
+    
+    for col_name, col_type in new_columns:
+        if col_name not in columns:
+            cursor.execute(f'ALTER TABLE timesheet_records ADD COLUMN {col_name} {col_type}')
     
     # 插入示例数据
     cursor.execute("SELECT COUNT(*) FROM users")
@@ -475,7 +499,7 @@ def login_page():
                     messageDiv.style.display = 'block';
                     
                     setTimeout(() => {
-                        window.location.href = '/';
+                        window.location.href = '/dashboard';
                     }, 1000);
                 } else {
                     messageDiv.className = 'alert alert-danger';
@@ -557,6 +581,14 @@ def register_page():
                     <label for="password" class="form-label">密码</label>
                     <input type="password" class="form-control" id="password" required minlength="6" placeholder="请设置登录密码（至少6位）">
                 </div>
+                <div class="mb-3">
+                    <label for="role" class="form-label">角色</label>
+                    <select class="form-control" id="role" required>
+                        <option value="">请选择角色</option>
+                        <option value="普通用户">普通用户（只能录入工时）</option>
+                        <option value="管理员">管理员（可管理门店信息）</option>
+                    </select>
+                </div>
                 <button type="submit" class="btn btn-success w-100 mb-3">注册</button>
             </form>
             
@@ -573,7 +605,8 @@ def register_page():
             const formData = {
                 name: document.getElementById('name').value,
                 group: document.getElementById('group').value,
-                password: document.getElementById('password').value
+                password: document.getElementById('password').value,
+                role: document.getElementById('role').value
             };
             
             const messageDiv = document.getElementById('message');
@@ -608,6 +641,509 @@ def register_page():
                 messageDiv.style.display = 'block';
             }
         });
+    </script>
+</body>
+</html>
+    '''
+
+# 认证装饰器
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect('/login')
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return jsonify({'error': '请先登录', 'redirect': '/login'}), 401
+        
+        conn = sqlite3.connect('enhanced_timesheet.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT position FROM users WHERE id = ?", (session['user_id'],))
+        user = cursor.fetchone()
+        conn.close()
+        
+        if not user or user[0] not in ['管理员', '系统管理员']:
+            return jsonify({'error': '权限不足'}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    """管理控制台主页"""
+    return '''
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能工时表管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { 
+            background-color: #f8f9fa; 
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+            min-height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 1000;
+            color: white;
+            overflow-y: auto;
+        }
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #34495e;
+        }
+        .sidebar-header h4 {
+            color: white;
+            margin: 0;
+            font-size: 18px;
+        }
+        .nav-menu {
+            padding: 20px 0;
+        }
+        .nav-item {
+            margin: 5px 0;
+        }
+        .nav-link {
+            color: #bdc3c7 !important;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            transition: all 0.3s;
+            border: none;
+            background: none;
+        }
+        .nav-link:hover, .nav-link.active {
+            background-color: #3498db;
+            color: white !important;
+        }
+        .nav-link i {
+            width: 20px;
+            margin-right: 10px;
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 0;
+            min-height: 100vh;
+        }
+        .top-bar {
+            background: white;
+            padding: 15px 30px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .content-area {
+            padding: 30px;
+        }
+        .page-title {
+            margin: 0 0 20px 0;
+            color: #2c3e50;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: #3498db;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            font-weight: 600;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h4><i class="fas fa-clock"></i> 工时管理系统</h4>
+        </div>
+        <nav class="nav-menu">
+            <div class="nav-item">
+                <button class="nav-link active w-100" onclick="showPage('timesheet')">
+                    <i class="fas fa-clock"></i> 工时录入
+                </button>
+            </div>
+            <div class="nav-item admin-only">
+                <button class="nav-link w-100" onclick="showPage('stores')">
+                    <i class="fas fa-store"></i> 门店管理
+                </button>
+            </div>
+            <div class="nav-item">
+                <button class="nav-link w-100" onclick="showPage('reports')">
+                    <i class="fas fa-chart-bar"></i> 数据报表
+                </button>
+            </div>
+            <div class="nav-item admin-only">
+                <button class="nav-link w-100" onclick="showPage('users')">
+                    <i class="fas fa-users"></i> 用户管理
+                </button>
+            </div>
+            <div class="nav-item">
+                <button class="nav-link w-100" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> 退出登录
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <div class="main-content">
+        <div class="top-bar">
+            <h1 class="page-title" id="pageTitle">工时录入</h1>
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar"></div>
+                <div>
+                    <div id="userName" style="font-weight: 600;"></div>
+                    <div id="userRole" style="font-size: 12px; color: #6c757d;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-area">
+            <!-- 工时录入页面 -->
+            <div id="timesheet-page" class="page-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">工时录入</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="timesheetForm">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">门店编码</label>
+                                    <select class="form-control" id="storeCode" required>
+                                        <option value="">请选择门店</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">工作日期</label>
+                                    <input type="date" class="form-control" id="workDate" required>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">开始时间</label>
+                                    <input type="time" class="form-control" id="startTime" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">结束时间</label>
+                                    <input type="time" class="form-control" id="endTime" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">工作内容</label>
+                                <textarea class="form-control" id="workContent" rows="3" placeholder="请简要描述工作内容"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 保存工时记录
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 门店管理页面 -->
+            <div id="stores-page" class="page-content hidden">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">门店管理</h5>
+                        <button class="btn btn-success" onclick="showImportModal()">
+                            <i class="fas fa-upload"></i> 导入门店信息
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>门店编码</th>
+                                        <th>门店名称</th>
+                                        <th>城市</th>
+                                        <th>地址</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="storesTableBody">
+                                    <!-- 门店数据将在这里显示 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 其他页面内容 -->
+            <div id="reports-page" class="page-content hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">数据报表</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>数据报表功能开发中...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="users-page" class="page-content hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">用户管理</h5>
+                    </div>
+                    <div class="card-body">
+                        <p>用户管理功能开发中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 门店导入模态框 -->
+    <div class="modal fade" id="importModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">导入门店信息</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="importForm">
+                        <div class="mb-3">
+                            <label class="form-label">选择Excel文件</label>
+                            <input type="file" class="form-control" id="storeFile" accept=".xlsx,.xls" required>
+                        </div>
+                        <div class="alert alert-info">
+                            <small>请确保Excel文件包含：门店编码、门店名称、城市、地址等列</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="importStores()">导入</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentUser = null;
+
+        // 页面加载时获取用户信息
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadUserInfo();
+            await loadStores();
+            setDefaultDate();
+        });
+
+        async function loadUserInfo() {
+            try {
+                const response = await fetch('/api/user/info');
+                const user = await response.json();
+                currentUser = user;
+                
+                document.getElementById('userName').textContent = user.name;
+                document.getElementById('userRole').textContent = `${user.group_name} - ${user.position}`;
+                document.getElementById('userAvatar').textContent = user.name.charAt(0);
+
+                // 根据权限显示/隐藏管理员功能
+                if (user.position !== '管理员') {
+                    document.querySelectorAll('.admin-only').forEach(el => {
+                        el.style.display = 'none';
+                    });
+                }
+            } catch (error) {
+                console.error('获取用户信息失败:', error);
+                window.location.href = '/login';
+            }
+        }
+
+        async function loadStores() {
+            try {
+                const response = await fetch('/api/stores');
+                const stores = await response.json();
+                
+                const storeSelect = document.getElementById('storeCode');
+                storeSelect.innerHTML = '<option value="">请选择门店</option>';
+                
+                stores.forEach(store => {
+                    const option = document.createElement('option');
+                    option.value = store.store_code;
+                    option.textContent = `${store.store_code} - ${store.store_name}`;
+                    storeSelect.appendChild(option);
+                });
+
+                // 更新门店管理表格
+                updateStoresTable(stores);
+            } catch (error) {
+                console.error('加载门店信息失败:', error);
+            }
+        }
+
+        function updateStoresTable(stores) {
+            const tbody = document.getElementById('storesTableBody');
+            tbody.innerHTML = '';
+            
+            stores.forEach(store => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${store.store_code}</td>
+                    <td>${store.store_name}</td>
+                    <td>${store.city}</td>
+                    <td>${store.address || '-'}</td>
+                    <td><span class="badge bg-success">正常</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary">编辑</button>
+                        <button class="btn btn-sm btn-outline-danger">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function setDefaultDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('workDate').value = today;
+        }
+
+        function showPage(pageId) {
+            // 隐藏所有页面
+            document.querySelectorAll('.page-content').forEach(page => {
+                page.classList.add('hidden');
+            });
+            
+            // 移除所有导航链接的active状态
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // 显示选中的页面
+            document.getElementById(pageId + '-page').classList.remove('hidden');
+            
+            // 设置active状态
+            event.target.classList.add('active');
+            
+            // 更新页面标题
+            const titles = {
+                'timesheet': '工时录入',
+                'stores': '门店管理',
+                'reports': '数据报表',
+                'users': '用户管理'
+            };
+            document.getElementById('pageTitle').textContent = titles[pageId];
+        }
+
+        function showImportModal() {
+            new bootstrap.Modal(document.getElementById('importModal')).show();
+        }
+
+        async function importStores() {
+            const fileInput = document.getElementById('storeFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('请选择文件');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/stores/import', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    alert('门店信息导入成功');
+                    bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
+                    await loadStores();
+                } else {
+                    alert('导入失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('导入失败: ' + error.message);
+            }
+        }
+
+        // 工时表单提交
+        document.getElementById('timesheetForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                store_code: document.getElementById('storeCode').value,
+                work_date: document.getElementById('workDate').value,
+                start_time: document.getElementById('startTime').value,
+                end_time: document.getElementById('endTime').value,
+                work_content: document.getElementById('workContent').value
+            };
+            
+            try {
+                const response = await fetch('/api/timesheet', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('工时记录保存成功！');
+                    document.getElementById('timesheetForm').reset();
+                    setDefaultDate();
+                } else {
+                    alert('保存失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('网络错误: ' + error.message);
+            }
+        });
+
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = '/login';
+            } catch (error) {
+                window.location.href = '/login';
+            }
+        }
     </script>
 </body>
 </html>
@@ -2123,32 +2659,6 @@ def index():
 </html>
     '''
 
-# 认证装饰器
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return jsonify({'error': '请先登录', 'redirect': '/login'}), 401
-        return f(*args, **kwargs)
-    return decorated_function
-
-def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return jsonify({'error': '请先登录', 'redirect': '/login'}), 401
-        
-        conn = sqlite3.connect('enhanced_timesheet.db')
-        cursor = conn.cursor()
-        cursor.execute("SELECT position FROM users WHERE id = ?", (session['user_id'],))
-        user = cursor.fetchone()
-        conn.close()
-        
-        if not user or user[0] not in ['管理员', '系统管理员']:
-            return jsonify({'error': '权限不足'}), 403
-        return f(*args, **kwargs)
-    return decorated_function
-
 # 健康检查API
 @app.route('/api/health')
 def health_check():
@@ -2181,7 +2691,7 @@ def health_check():
 def register():
     data = request.get_json()
     
-    required_fields = ['name', 'group', 'password']
+    required_fields = ['name', 'group', 'password', 'role']
     for field in required_fields:
         if not data.get(field):
             return jsonify({'error': f'缺少必要字段: {field}'}), 400
@@ -2194,6 +2704,11 @@ def register():
     valid_groups = ['稽核一组', '稽核二组', '稽核三组', '稽核四组']
     if data['group'] not in valid_groups:
         return jsonify({'error': '无效的组别'}), 400
+    
+    # 验证角色是否有效
+    valid_roles = ['普通用户', '管理员']
+    if data['role'] not in valid_roles:
+        return jsonify({'error': '无效的角色'}), 400
     
     # 密码加密
     password_hash = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
@@ -2225,7 +2740,7 @@ def register():
             data['name'],
             data['group'],
             data['group'],  # 部门设为组别
-            '稽核员',       # 默认职位
+            data['role'],   # 职位设为用户选择的角色
             f"{username}@company.com",  # 生成默认邮箱
             password_hash.decode('utf-8')
         ))
@@ -2331,6 +2846,219 @@ def login():
 def logout():
     session.clear()
     return jsonify({'success': True, 'message': '已退出登录'})
+
+@app.route('/api/user/info', methods=['GET'])
+@login_required
+def get_user_info():
+    """获取当前登录用户信息"""
+    conn = sqlite3.connect('enhanced_timesheet.db')
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            SELECT id, name, department, position, group_name, email, is_active
+            FROM users WHERE id = ?
+        ''', (session['user_id'],))
+        
+        user = cursor.fetchone()
+        conn.close()
+        
+        if not user:
+            return jsonify({'error': '用户不存在'}), 404
+        
+        return jsonify({
+            'id': user[0],
+            'name': user[1],
+            'department': user[2],
+            'position': user[3],
+            'group_name': user[4] or '未分组',
+            'email': user[5],
+            'is_active': user[6]
+        })
+        
+    except sqlite3.Error as e:
+        conn.close()
+        return jsonify({'error': f'数据库错误: {str(e)}'}), 500
+
+@app.route('/api/stores/import', methods=['POST'])
+@login_required
+def import_stores():
+    """导入门店信息 - 仅管理员可用"""
+    # 检查用户权限
+    conn = sqlite3.connect('enhanced_timesheet.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT position FROM users WHERE id = ?", (session['user_id'],))
+    user = cursor.fetchone()
+    
+    if not user or user[0] != '管理员':
+        conn.close()
+        return jsonify({'error': '权限不足，仅管理员可导入门店信息'}), 403
+    
+    if 'file' not in request.files:
+        conn.close()
+        return jsonify({'error': '未选择文件'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        conn.close()
+        return jsonify({'error': '未选择文件'}), 400
+    
+    if not file.filename.lower().endswith(('.xlsx', '.xls')):
+        conn.close()
+        return jsonify({'error': '文件格式不支持，请上传Excel文件'}), 400
+    
+    try:
+        import pandas as pd
+        
+        # 读取Excel文件
+        df = pd.read_excel(file)
+        
+        # 检查必要的列
+        required_columns = ['门店编码', '门店名称', '城市']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            conn.close()
+            return jsonify({'error': f'缺少必要列: {", ".join(missing_columns)}'}), 400
+        
+        success_count = 0
+        error_count = 0
+        error_details = []
+        
+        for index, row in df.iterrows():
+            try:
+                store_code = str(row['门店编码']).strip()
+                store_name = str(row['门店名称']).strip()
+                city = str(row['城市']).strip()
+                address = str(row.get('地址', '')).strip() if pd.notna(row.get('地址')) else ''
+                
+                if not store_code or not store_name or not city:
+                    error_count += 1
+                    error_details.append(f'第{index+2}行: 门店编码、门店名称或城市不能为空')
+                    continue
+                
+                # 检查门店编码是否已存在
+                cursor.execute("SELECT id FROM stores WHERE store_code = ?", (store_code,))
+                if cursor.fetchone():
+                    # 更新现有门店
+                    cursor.execute('''
+                        UPDATE stores SET store_name = ?, store_city = ?, address = ?
+                        WHERE store_code = ?
+                    ''', (store_name, city, address, store_code))
+                else:
+                    # 插入新门店
+                    cursor.execute('''
+                        INSERT INTO stores (store_code, store_name, store_city, address)
+                        VALUES (?, ?, ?, ?)
+                    ''', (store_code, store_name, city, address))
+                
+                success_count += 1
+                
+            except Exception as e:
+                error_count += 1
+                error_details.append(f'第{index+2}行: {str(e)}')
+        
+        conn.commit()
+        conn.close()
+        
+        result = {
+            'success': True,
+            'message': f'导入完成: 成功{success_count}条，失败{error_count}条',
+            'success_count': success_count,
+            'error_count': error_count
+        }
+        
+        if error_details:
+            result['error_details'] = error_details[:10]  # 只返回前10个错误
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': f'文件处理失败: {str(e)}'}), 500
+
+@app.route('/api/timesheet', methods=['POST'])
+@login_required
+def add_timesheet():
+    """添加工时记录"""
+    data = request.get_json()
+    
+    required_fields = ['store_code', 'work_date', 'start_time', 'end_time']
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({'error': f'缺少必要字段: {field}'}), 400
+    
+    # 验证门店编码是否存在
+    conn = sqlite3.connect('enhanced_timesheet.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT store_name FROM stores WHERE store_code = ?", (data['store_code'],))
+    store = cursor.fetchone()
+    if not store:
+        conn.close()
+        return jsonify({'error': '门店编码不存在'}), 400
+    
+    try:
+        from datetime import datetime
+        
+        # 验证时间格式
+        work_date = datetime.strptime(data['work_date'], '%Y-%m-%d').date()
+        start_time = datetime.strptime(data['start_time'], '%H:%M').time()
+        end_time = datetime.strptime(data['end_time'], '%H:%M').time()
+        
+        # 计算工作时长（小时）
+        start_datetime = datetime.combine(work_date, start_time)
+        end_datetime = datetime.combine(work_date, end_time)
+        
+        if end_datetime <= start_datetime:
+            conn.close()
+            return jsonify({'error': '结束时间必须晚于开始时间'}), 400
+        
+        work_hours = (end_datetime - start_datetime).total_seconds() / 3600
+        
+        # 检查是否已有相同日期和门店的记录
+        cursor.execute('''
+            SELECT id FROM timesheet_records 
+            WHERE user_id = ? AND store_code = ? AND work_date = ?
+        ''', (session['user_id'], data['store_code'], data['work_date']))
+        
+        existing = cursor.fetchone()
+        if existing:
+            conn.close()
+            return jsonify({'error': '该日期该门店已有工时记录'}), 400
+        
+        # 插入工时记录
+        cursor.execute('''
+            INSERT INTO timesheet_records 
+            (user_id, store_code, store_name, work_date, start_time, end_time, work_hours, work_content)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            session['user_id'],
+            data['store_code'],
+            store[0],  # store_name
+            data['work_date'],
+            data['start_time'],
+            data['end_time'],
+            round(work_hours, 2),
+            data.get('work_content', '')
+        ))
+        
+        conn.commit()
+        record_id = cursor.lastrowid
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': '工时记录添加成功',
+            'record_id': record_id,
+            'work_hours': round(work_hours, 2)
+        })
+        
+    except ValueError as e:
+        conn.close()
+        return jsonify({'error': f'时间格式错误: {str(e)}'}), 400
+    except Exception as e:
+        conn.close()
+        return jsonify({'error': f'数据库错误: {str(e)}'}), 500
 
 @app.route('/api/profile')
 def profile():
