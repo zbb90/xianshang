@@ -412,53 +412,135 @@ def login_page():
     <title>用户登录 - 智能工时表管理系统</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .login-container {
-            max-width: 400px;
-            margin: 100px auto;
-            padding: 2rem;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-            border-radius: 10px;
+        body {
+            background-color: #f7f8fc;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
         }
-        .system-title {
+        .login-container {
+            max-width: 420px;
+            margin: 80px auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+        }
+        .header {
             text-align: center;
-            color: #2c3e50;
-            margin-bottom: 2rem;
+            margin-bottom: 32px;
+        }
+        .logo {
+            font-size: 24px;
+            color: #1890ff;
+            margin-bottom: 16px;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: 500;
+            color: #262626;
+            margin-bottom: 8px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #262626;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .form-control {
+            width: 100%;
+            height: 40px;
+            padding: 8px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            background: white;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #1890ff;
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        }
+        .btn-login {
+            width: 100%;
+            height: 40px;
+            background: #1890ff;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn-login:hover {
+            background: #40a9ff;
+        }
+        .link-text {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 14px;
+            color: #8c8c8c;
+        }
+        .link-text a {
+            color: #1890ff;
+            text-decoration: none;
+        }
+        .link-text a:hover {
+            text-decoration: underline;
+        }
+        .alert {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: none;
+        }
+        .alert-success {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+        }
+        .alert-danger {
+            background: #fff2f0;
+            border: 1px solid #ffccc7;
+            color: #ff4d4f;
+        }
+        .alert-warning {
+            background: #fffbe6;
+            border: 1px solid #ffe58f;
+            color: #faad14;
         }
     </style>
 </head>
-<body class="bg-light">
-    <div class="container">
-        <div class="login-container bg-white">
-            <h2 class="system-title">🚀 智能工时表管理系统</h2>
-            <h4 class="text-center mb-4">用户登录</h4>
-            
-            <div id="message" class="alert" style="display: none;"></div>
-            
-            <form id="loginForm">
-                <div class="mb-3">
-                    <label for="name" class="form-label">姓名</label>
-                    <input type="text" class="form-control" id="name" required placeholder="请输入您的姓名">
-                </div>
-                <div class="mb-3">
-                    <label for="group" class="form-label">组别</label>
-                    <select class="form-control" id="group" required>
-                        <option value="">请选择组别</option>
-                        <option value="稽核一组">稽核一组</option>
-                        <option value="稽核二组">稽核二组</option>
-                        <option value="稽核三组">稽核三组</option>
-                        <option value="稽核四组">稽核四组</option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label for="password" class="form-label">密码</label>
-                    <input type="password" class="form-control" id="password" required>
-                </div>
-                <button type="submit" class="btn btn-primary w-100 mb-3">登录</button>
-            </form>
-            
-            <div class="text-center">
-                <p>还没有账户？ <a href="/register">立即注册</a></p>
+<body>
+    <div class="login-container">
+        <div class="header">
+            <div class="logo">🚀 智能工时表管理系统</div>
+            <div class="title">用户登录</div>
+        </div>
+        
+        <div id="message" class="alert"></div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label class="form-label">用户名/邮箱</label>
+                <input type="text" class="form-control" id="account" required placeholder="请输入用户名或邮箱">
             </div>
+            <div class="form-group">
+                <label class="form-label">密码</label>
+                <input type="password" class="form-control" id="password" required placeholder="请输入密码">
+            </div>
+            <button type="submit" class="btn-login">登录</button>
+        </form>
+        
+        <div class="link-text">
+            还没有账户？ <a href="/register">立即注册</a>
         </div>
     </div>
 
@@ -466,12 +548,11 @@ def login_page():
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const name = document.getElementById('name').value;
-            const group = document.getElementById('group').value;
+            const account = document.getElementById('account').value;
             const password = document.getElementById('password').value;
             const messageDiv = document.getElementById('message');
             
-            if (!name || !group || !password) {
+            if (!account || !password) {
                 messageDiv.className = 'alert alert-warning';
                 messageDiv.textContent = '请填写完整信息';
                 messageDiv.style.display = 'block';
@@ -485,8 +566,7 @@ def login_page():
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ 
-                        name: name,
-                        group: group,
+                        account: account,
                         password: password 
                     })
                 });
@@ -535,66 +615,189 @@ def register_page():
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>用户注册 - 智能工时表管理系统</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
     <style>
-        .register-container {
-            max-width: 500px;
-            margin: 50px auto;
-            padding: 2rem;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-            border-radius: 10px;
+        body {
+            background-color: #f7f8fc;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
         }
-        .system-title {
+        .register-container {
+            max-width: 420px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+        }
+        .header {
             text-align: center;
-            color: #2c3e50;
-            margin-bottom: 2rem;
+            margin-bottom: 32px;
+        }
+        .logo {
+            font-size: 24px;
+            color: #1890ff;
+            margin-bottom: 16px;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: 500;
+            color: #262626;
+            margin-bottom: 8px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #262626;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .form-control {
+            width: 100%;
+            height: 40px;
+            padding: 8px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            background: white;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #1890ff;
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        }
+        .form-select {
+            height: 40px;
+            padding: 8px 12px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        .form-select:focus {
+            outline: none;
+            border-color: #1890ff;
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        }
+        .btn-register {
+            width: 100%;
+            height: 40px;
+            background: #52c41a;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn-register:hover {
+            background: #73d13d;
+        }
+        .link-text {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 14px;
+            color: #8c8c8c;
+        }
+        .link-text a {
+            color: #1890ff;
+            text-decoration: none;
+        }
+        .link-text a:hover {
+            text-decoration: underline;
+        }
+        .row {
+            display: flex;
+            gap: 16px;
+        }
+        .col {
+            flex: 1;
+        }
+        .alert {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            display: none;
+        }
+        .alert-success {
+            background: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+        }
+        .alert-danger {
+            background: #fff2f0;
+            border: 1px solid #ffccc7;
+            color: #ff4d4f;
         }
     </style>
 </head>
-<body class="bg-light">
-    <div class="container">
-        <div class="register-container bg-white">
-            <h2 class="system-title">🚀 智能工时表管理系统</h2>
-            <h4 class="text-center mb-4">用户注册</h4>
-            <p class="text-center text-muted small">版本: v2.0 - 简化注册</p>
-            
-            <div id="message" class="alert" style="display: none;"></div>
-            
-            <form id="registerForm">
-                <div class="mb-3">
-                    <label for="name" class="form-label">姓名</label>
-                    <input type="text" class="form-control" id="name" required placeholder="请输入您的真实姓名">
-                </div>
-                <div class="mb-3">
-                    <label for="group" class="form-label">组别</label>
-                    <select class="form-control" id="group" required>
-                        <option value="">请选择组别</option>
-                        <option value="稽核一组">稽核一组</option>
-                        <option value="稽核二组">稽核二组</option>
-                        <option value="稽核三组">稽核三组</option>
-                        <option value="稽核四组">稽核四组</option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label for="password" class="form-label">密码</label>
-                    <input type="password" class="form-control" id="password" required minlength="6" placeholder="请设置登录密码（至少6位）">
-                </div>
-                <div class="mb-3">
-                    <label for="role" class="form-label">角色</label>
-                    <select class="form-control" id="role" required>
-                        <option value="">请选择角色</option>
-                        <option value="普通用户">普通用户（只能录入工时）</option>
-                        <option value="管理员">管理员（可管理门店信息）</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-success w-100 mb-3">注册</button>
-            </form>
-            
-            <div class="text-center">
-                <p>已有账户？ <a href="/login">立即登录</a></p>
+<body>
+    <div class="register-container">
+        <div class="header">
+            <div class="logo">🚀 智能工时表管理系统</div>
+            <div class="title">用户注册</div>
+        </div>
+        
+        <div id="message" class="alert"></div>
+        
+        <form id="registerForm">
+            <div class="form-group">
+                <label class="form-label">用户名</label>
+                <input type="text" class="form-control" id="username" required>
             </div>
+            
+            <div class="form-group">
+                <label class="form-label">邮箱</label>
+                <input type="email" class="form-control" id="email" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">密码</label>
+                <input type="password" class="form-control" id="password" required minlength="6">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">姓名</label>
+                <input type="text" class="form-control" id="name" required>
+            </div>
+            
+            <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                        <label class="form-label">部门</label>
+                        <select class="form-select" id="department" required>
+                            <option value="">选择部门</option>
+                            <option value="销售部">销售部</option>
+                            <option value="市场部">市场部</option>
+                            <option value="技术部">技术部</option>
+                            <option value="运营部">运营部</option>
+                            <option value="财务部">财务部</option>
+                            <option value="人事部">人事部</option>
+                            <option value="管理层">管理层</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                        <label class="form-label">职位</label>
+                        <input type="text" class="form-control" id="position" placeholder="如：业务员，经理，专员" required>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn-register">注册</button>
+        </form>
+        
+        <div class="link-text">
+            已有账户？ <a href="/login">立即登录</a>
         </div>
     </div>
 
@@ -603,10 +806,13 @@ def register_page():
             e.preventDefault();
             
             const formData = {
-                name: document.getElementById('name').value,
-                group: document.getElementById('group').value,
+                username: document.getElementById('username').value,
+                email: document.getElementById('email').value,
                 password: document.getElementById('password').value,
-                role: document.getElementById('role').value
+                name: document.getElementById('name').value,
+                department: document.getElementById('department').value,
+                position: document.getElementById('position').value,
+                role: '普通用户'  // 默认角色
             };
             
             const messageDiv = document.getElementById('message');
@@ -977,11 +1183,11 @@ def dashboard():
                 currentUser = user;
                 
                 document.getElementById('userName').textContent = user.name;
-                document.getElementById('userRole').textContent = `${user.group_name} - ${user.position}`;
+                document.getElementById('userRole').textContent = `${user.department} - ${user.position}`;
                 document.getElementById('userAvatar').textContent = user.name.charAt(0);
 
                 // 根据权限显示/隐藏管理员功能
-                if (user.position !== '管理员') {
+                if (user.position !== '管理员' && user.position !== '管理层') {
                     document.querySelectorAll('.admin-only').forEach(el => {
                         el.style.display = 'none';
                     });
@@ -1151,6 +1357,14 @@ def dashboard():
 
 @app.route('/')
 def index():
+    # 如果用户已登录，直接跳转到dashboard
+    if 'user_id' in session:
+        return redirect('/dashboard')
+    else:
+        return redirect('/login')
+
+@app.route('/old-index')
+def old_index():
     return '''
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -2691,7 +2905,7 @@ def health_check():
 def register():
     data = request.get_json()
     
-    required_fields = ['name', 'group', 'password', 'role']
+    required_fields = ['username', 'email', 'password', 'name', 'department', 'position']
     for field in required_fields:
         if not data.get(field):
             return jsonify({'error': f'缺少必要字段: {field}'}), 400
@@ -2700,15 +2914,11 @@ def register():
     if len(data['password']) < 6:
         return jsonify({'error': '密码长度至少6位'}), 400
     
-    # 验证组别是否有效
-    valid_groups = ['稽核一组', '稽核二组', '稽核三组', '稽核四组']
-    if data['group'] not in valid_groups:
-        return jsonify({'error': '无效的组别'}), 400
-    
-    # 验证角色是否有效
-    valid_roles = ['普通用户', '管理员']
-    if data['role'] not in valid_roles:
-        return jsonify({'error': '无效的角色'}), 400
+    # 验证邮箱格式
+    import re
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, data['email']):
+        return jsonify({'error': '邮箱格式不正确'}), 400
     
     # 密码加密
     password_hash = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
@@ -2717,32 +2927,30 @@ def register():
     cursor = conn.cursor()
     
     try:
-        # 检查是否已存在相同姓名和组别的用户
-        cursor.execute('''
-            SELECT id FROM users WHERE name = ? AND group_name = ?
-        ''', (data['name'], data['group']))
-        
-        existing_user = cursor.fetchone()
-        if existing_user:
+        # 检查用户名是否已存在
+        cursor.execute('SELECT id FROM users WHERE username = ?', (data['username'],))
+        if cursor.fetchone():
             conn.close()
-            return jsonify({'error': '该姓名在此组别中已存在'}), 400
+            return jsonify({'error': '用户名已存在'}), 400
         
-        # 生成唯一的用户名（姓名+组别+时间戳）
-        import time
-        username = f"{data['name']}_{data['group']}_{int(time.time())}"
+        # 检查邮箱是否已存在
+        cursor.execute('SELECT id FROM users WHERE email = ?', (data['email'],))
+        if cursor.fetchone():
+            conn.close()
+            return jsonify({'error': '邮箱已被注册'}), 400
         
         # 插入新用户
         cursor.execute('''
-            INSERT INTO users (username, name, group_name, department, position, email, password_hash)
+            INSERT INTO users (username, name, department, position, email, password_hash, is_active)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (
-            username,
+            data['username'],
             data['name'],
-            data['group'],
-            data['group'],  # 部门设为组别
-            data['role'],   # 职位设为用户选择的角色
-            f"{username}@company.com",  # 生成默认邮箱
-            password_hash.decode('utf-8')
+            data['department'],
+            data['position'],
+            data['email'],
+            password_hash.decode('utf-8'),
+            1
         ))
         
         user_id = cursor.lastrowid
@@ -2753,7 +2961,7 @@ def register():
             'success': True,
             'message': '注册成功',
             'user_id': user_id,
-            'username': username
+            'username': data['username']
         }), 201
         
     except sqlite3.Error as e:
@@ -2792,7 +3000,7 @@ def get_users():
 def login():
     data = request.get_json()
     
-    required_fields = ['name', 'group', 'password']
+    required_fields = ['account', 'password']
     for field in required_fields:
         if not data.get(field):
             return jsonify({'error': f'缺少必要字段: {field}'}), 400
@@ -2801,40 +3009,40 @@ def login():
     cursor = conn.cursor()
     
     try:
+        # 支持用户名或邮箱登录
         cursor.execute('''
-            SELECT id, name, department, position, group_name, is_active, password_hash
-            FROM users WHERE name = ? AND group_name = ?
-        ''', (data['name'], data['group']))
+            SELECT id, username, name, department, position, email, is_active, password_hash
+            FROM users WHERE (username = ? OR email = ?) AND is_active = 1
+        ''', (data['account'], data['account']))
         
         user = cursor.fetchone()
         conn.close()
         
         if not user:
-            return jsonify({'error': '用户不存在或组别不匹配'}), 401
-        
-        if not user[5]:  # is_active
-            return jsonify({'error': '账户已被禁用'}), 401
+            return jsonify({'error': '用户不存在或账户已被禁用'}), 401
         
         # 验证密码
-        if not user[6] or not bcrypt.checkpw(data['password'].encode('utf-8'), user[6].encode('utf-8')):
+        if not user[7] or not bcrypt.checkpw(data['password'].encode('utf-8'), user[7].encode('utf-8')):
             return jsonify({'error': '密码错误'}), 401
         
         # 设置session
         session['user_id'] = user[0]
-        session['name'] = user[1]
-        session['department'] = user[2]
-        session['position'] = user[3]
-        session['group_name'] = user[4]
+        session['username'] = user[1]
+        session['name'] = user[2]
+        session['department'] = user[3]
+        session['position'] = user[4]
+        session['email'] = user[5]
         
         return jsonify({
             'success': True,
             'message': '登录成功',
             'user': {
                 'id': user[0],
-                'name': user[1],
-                'department': user[2],
-                'position': user[3],
-                'group_name': user[4]
+                'username': user[1],
+                'name': user[2],
+                'department': user[3],
+                'position': user[4],
+                'email': user[5]
             }
         })
         
