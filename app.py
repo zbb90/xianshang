@@ -948,8 +948,8 @@ def health_check():
         return jsonify({
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
-            'version': '4.1.0',
-            'build': 'department-fix-2025-09-05'
+            'version': '4.1.1',
+            'build': 'force-railway-rebuild-2025-09-05-v2'
         })
     except Exception as e:
         return jsonify({
