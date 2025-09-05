@@ -600,10 +600,20 @@ def login_page():
 @app.route('/version')
 def version_info():
     return jsonify({
-        'version': 'v2.0',
-        'description': '简化注册系统 - 姓名+组别+密码',
-        'timestamp': datetime.now().isoformat()
+        'version': 'v3.0',
+        'description': '新版注册界面 - 完整用户信息',
+        'timestamp': datetime.now().isoformat(),
+        'features': ['用户名', '邮箱', '密码', '姓名', '部门', '职位']
     })
+
+@app.route('/test')
+def test_page():
+    return '''
+    <h1>测试页面 - v3.0</h1>
+    <p>如果您看到这个页面，说明代码已经成功部署</p>
+    <p><a href="/register">前往注册页面</a></p>
+    <p><a href="/login">前往登录页面</a></p>
+    '''
 
 @app.route('/register')
 def register_page():
@@ -615,6 +625,10 @@ def register_page():
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>用户注册 - 智能工时表管理系统</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="version" content="v3.0-20250101">
     <style>
         body {
             background-color: #f7f8fc;
@@ -744,6 +758,7 @@ def register_page():
         <div class="header">
             <div class="logo">🚀 智能工时表管理系统</div>
             <div class="title">用户注册</div>
+            <div style="font-size: 12px; color: #999; margin-top: 8px;">v3.0 - 新版界面</div>
         </div>
         
         <div id="message" class="alert"></div>
