@@ -1,3 +1,4 @@
+# v4.2.1 FINAL - 门店名称输入和路程计算功能
 Flask==2.3.3
 Flask-SQLAlchemy==3.0.5
 Flask-CORS==4.0.0
