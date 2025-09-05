@@ -630,11 +630,21 @@ def version_info():
 
 @app.route('/test')
 def test_page():
-    return '''
-    <h1>测试页面 - v3.0</h1>
-    <p>如果您看到这个页面，说明代码已经成功部署</p>
-    <p><a href="/register">前往注册页面</a></p>
-    <p><a href="/login">前往登录页面</a></p>
+    from datetime import datetime
+    return f'''
+    <h1>🚀 测试页面 - v4.0</h1>
+    <p><strong>部署时间：</strong>{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+    <p><strong>状态：</strong>✅ 代码已成功部署</p>
+    <p><a href="/register">🔗 前往注册页面</a></p>
+    <p><a href="/login">🔗 前往登录页面</a></p>
+    <p><a href="/">🔗 测试主页重定向</a></p>
+    <style>
+        body {{ font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }}
+        h1 {{ color: #333; }}
+        p {{ margin: 10px 0; }}
+        a {{ color: #007bff; text-decoration: none; }}
+        a:hover {{ text-decoration: underline; }}
+    </style>
     '''
 
 @app.route('/register')
@@ -1419,11 +1429,8 @@ def dashboard():
 
 @app.route('/')
 def index():
-    # 如果用户已登录，直接跳转到dashboard
-    if 'user_id' in session:
-        return redirect('/dashboard')
-    else:
-        return redirect('/register')
+    # 强制重定向到注册页面 - v4.0
+    return redirect('/register')
 
 @app.route('/old-index')
 def old_index():
