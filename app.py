@@ -1124,13 +1124,20 @@ def add_timesheet():
         conn = sqlite3.connect('timesheet.db')
         cursor = conn.cursor()
         
+        # 获取门店名称
+        cursor.execute('SELECT store_name FROM stores WHERE store_code = ?', (data['store_code'],))
+        store_result = cursor.fetchone()
+        if not store_result:
+            return jsonify({'error': '门店编码不存在'}), 400
+        store_name = store_result[0]
+        
         # 插入记录
         cursor.execute('''
             INSERT INTO timesheet_records 
-            (user_id, store_code, work_date, start_time, end_time, work_hours, work_content)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (user_id, store_code, store_name, work_date, start_time, end_time, work_hours, work_content)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
-            session['user_id'], data['store_code'], data['work_date'],
+            session['user_id'], data['store_code'], store_name, data['work_date'],
             data['start_time'], data['end_time'], round(work_hours, 2),
             data.get('work_content', '')
         ))
@@ -1148,6 +1155,123 @@ def add_timesheet():
         
     except Exception as e:
         return jsonify({'error': f'处理失败: {str(e)}'}), 500
+
+@app.route('/api/timesheet/records', methods=['GET'])
+@login_required  
+def get_timesheet_records():
+    """获取工时记录"""
+    try:
+        user_id = session.get('user_id')
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        
+        conn = sqlite3.connect('timesheet.db')
+        cursor = conn.cursor()
+        
+        # 获取总数
+        cursor.execute("SELECT COUNT(*) FROM timesheet_records WHERE user_id = ?", (user_id,))
+        total = cursor.fetchone()[0]
+        
+        # 获取记录列表
+        offset = (page - 1) * limit
+        cursor.execute('''
+            SELECT id, store_code, store_name, work_date, start_time, end_time, 
+                   work_content, work_hours, created_at
+            FROM timesheet_records 
+            WHERE user_id = ?
+            ORDER BY work_date DESC, created_at DESC
+            LIMIT ? OFFSET ?
+        ''', (user_id, limit, offset))
+        
+        records = []
+        for row in cursor.fetchall():
+            records.append({
+                'id': row[0],
+                'store_code': row[1],
+                'store_name': row[2],
+                'work_date': row[3],
+                'start_time': row[4],
+                'end_time': row[5], 
+                'work_content': row[6],
+                'work_hours': row[7],
+                'created_at': row[8]
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'records': records,
+            'total': total,
+            'page': page,
+            'limit': limit
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'获取工时记录失败: {str(e)}'}), 500
+
+@app.route('/api/stores', methods=['GET'])
+@login_required
+def get_stores():
+    """获取门店列表"""
+    try:
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 20))
+        search = request.args.get('search', '').strip()
+        
+        conn = sqlite3.connect('timesheet.db')
+        cursor = conn.cursor()
+        
+        # 构建查询条件
+        where_clause = ""
+        params = []
+        
+        if search:
+            where_clause = "WHERE store_code LIKE ? OR store_name LIKE ? OR store_city LIKE ?"
+            search_param = f'%{search}%'
+            params = [search_param, search_param, search_param]
+        
+        # 获取总数
+        count_query = f"SELECT COUNT(*) FROM stores {where_clause}"
+        cursor.execute(count_query, params)
+        total = cursor.fetchone()[0]
+        
+        # 获取门店列表
+        offset = (page - 1) * limit
+        list_query = f"""
+            SELECT store_code, store_name, store_city, address, 
+                   longitude, latitude, created_at
+            FROM stores {where_clause}
+            ORDER BY store_code
+            LIMIT ? OFFSET ?
+        """
+        cursor.execute(list_query, params + [limit, offset])
+        
+        stores = []
+        for row in cursor.fetchall():
+            stores.append({
+                'store_code': row[0],
+                'store_name': row[1], 
+                'store_city': row[2],
+                'address': row[3],
+                'longitude': row[4],
+                'latitude': row[5],
+                'created_at': row[6]
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'stores': stores,
+            'total': total,
+            'page': page,
+            'limit': limit,
+            'pages': (total + limit - 1) // limit
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'获取门店列表失败: {str(e)}'}), 500
 
 @app.route('/api/stores/import', methods=['POST'])
 @admin_required
