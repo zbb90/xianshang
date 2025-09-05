@@ -410,36 +410,45 @@ def login_page():
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>用户登录 - 智能工时表管理系统</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background-color: #f7f8fc;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 20px;
         }
-        .login-container {
-            max-width: 420px;
-            margin: 80px auto;
+        .login-card {
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
             padding: 40px;
+            width: 100%;
+            max-width: 400px;
         }
         .header {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 30px;
         }
         .logo {
-            font-size: 24px;
-            color: #1890ff;
-            margin-bottom: 16px;
+            font-size: 28px;
+            margin-bottom: 10px;
         }
         .title {
             font-size: 24px;
-            font-weight: 500;
-            color: #262626;
+            font-weight: 600;
+            color: #333;
             margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 14px;
         }
         .form-group {
             margin-bottom: 20px;
@@ -447,82 +456,85 @@ def login_page():
         .form-label {
             display: block;
             margin-bottom: 8px;
-            color: #262626;
+            color: #333;
             font-weight: 500;
             font-size: 14px;
         }
         .form-control {
             width: 100%;
-            height: 40px;
-            padding: 8px 12px;
-            border: 1px solid #d9d9d9;
-            border-radius: 6px;
+            height: 44px;
+            padding: 0 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
             font-size: 14px;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
             background: white;
         }
         .form-control:focus {
             outline: none;
-            border-color: #1890ff;
-            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         .btn-login {
             width: 100%;
-            height: 40px;
-            background: #1890ff;
+            height: 48px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             color: white;
-            font-size: 14px;
-            font-weight: 500;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: transform 0.2s;
+            margin: 20px 0;
         }
         .btn-login:hover {
-            background: #40a9ff;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
         .link-text {
             text-align: center;
-            margin-top: 16px;
+            color: #666;
             font-size: 14px;
-            color: #8c8c8c;
         }
         .link-text a {
-            color: #1890ff;
+            color: #667eea;
             text-decoration: none;
+            font-weight: 500;
         }
         .link-text a:hover {
             text-decoration: underline;
         }
         .alert {
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
             font-size: 14px;
             display: none;
         }
         .alert-success {
-            background: #f6ffed;
-            border: 1px solid #b7eb8f;
-            color: #52c41a;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
         }
         .alert-danger {
-            background: #fff2f0;
-            border: 1px solid #ffccc7;
-            color: #ff4d4f;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
         }
         .alert-warning {
-            background: #fffbe6;
-            border: 1px solid #ffe58f;
-            color: #faad14;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
+    <div class="login-card">
         <div class="header">
             <div class="logo">🚀 智能工时表管理系统</div>
             <div class="title">用户登录</div>
+            <div class="subtitle">欢迎回来，请登录您的账户</div>
         </div>
         
         <div id="message" class="alert"></div>
@@ -536,7 +548,7 @@ def login_page():
                 <label class="form-label">密码</label>
                 <input type="password" class="form-control" id="password" required placeholder="请输入密码">
             </div>
-            <button type="submit" class="btn-login">登录</button>
+            <button type="submit" class="btn-login">立即登录</button>
         </form>
         
         <div class="link-text">
@@ -548,16 +560,22 @@ def login_page():
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const account = document.getElementById('account').value;
+            const account = document.getElementById('account').value.trim();
             const password = document.getElementById('password').value;
-            const messageDiv = document.getElementById('message');
             
             if (!account || !password) {
-                messageDiv.className = 'alert alert-warning';
-                messageDiv.textContent = '请填写完整信息';
-                messageDiv.style.display = 'block';
+                showMessage('请填写完整信息', 'warning');
                 return;
             }
+            
+            const messageDiv = document.getElementById('message');
+            messageDiv.style.display = 'none';
+            
+            // 显示加载状态
+            const submitBtn = document.querySelector('.btn-login');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = '登录中...';
+            submitBtn.disabled = true;
             
             try {
                 const response = await fetch('/api/login', {
@@ -574,24 +592,28 @@ def login_page():
                 const result = await response.json();
                 
                 if (result.success) {
-                    messageDiv.className = 'alert alert-success';
-                    messageDiv.textContent = '登录成功，正在跳转...';
-                    messageDiv.style.display = 'block';
-                    
+                    showMessage('登录成功，正在跳转...', 'success');
                     setTimeout(() => {
                         window.location.href = '/dashboard';
                     }, 1000);
                 } else {
-                    messageDiv.className = 'alert alert-danger';
-                    messageDiv.textContent = result.error || '登录失败';
-                    messageDiv.style.display = 'block';
+                    showMessage(result.error || '登录失败，请检查用户名和密码', 'danger');
                 }
             } catch (error) {
-                messageDiv.className = 'alert alert-danger';
-                messageDiv.textContent = '网络错误，请重试';
-                messageDiv.style.display = 'block';
+                showMessage('网络错误，请检查网络连接后重试', 'danger');
+                console.error('Login error:', error);
+            } finally {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
             }
         });
+        
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = `alert alert-${type}`;
+            messageDiv.textContent = text;
+            messageDiv.style.display = 'block';
+        }
     </script>
 </body>
 </html>
@@ -624,191 +646,194 @@ def register_page():
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>用户注册 - 智能工时表管理系统</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="version" content="v3.0-20250101">
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background-color: #f7f8fc;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 20px;
         }
-        .register-container {
-            max-width: 420px;
-            margin: 40px auto;
+        .register-card {
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
             padding: 40px;
+            width: 100%;
+            max-width: 500px;
         }
         .header {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 30px;
         }
         .logo {
-            font-size: 24px;
-            color: #1890ff;
-            margin-bottom: 16px;
+            font-size: 28px;
+            margin-bottom: 10px;
         }
         .title {
             font-size: 24px;
-            font-weight: 500;
-            color: #262626;
+            font-weight: 600;
+            color: #333;
             margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
         }
         .form-group {
             margin-bottom: 20px;
+            flex: 1;
         }
         .form-label {
             display: block;
             margin-bottom: 8px;
-            color: #262626;
+            color: #333;
             font-weight: 500;
             font-size: 14px;
         }
-        .form-control {
+        .form-control, .form-select {
             width: 100%;
-            height: 40px;
-            padding: 8px 12px;
-            border: 1px solid #d9d9d9;
-            border-radius: 6px;
+            height: 44px;
+            padding: 0 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
             font-size: 14px;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
             background: white;
         }
-        .form-control:focus {
+        .form-control:focus, .form-select:focus {
             outline: none;
-            border-color: #1890ff;
-            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         .form-select {
-            height: 40px;
-            padding: 8px 12px;
-            border: 1px solid #d9d9d9;
-            border-radius: 6px;
-            font-size: 14px;
-            background: white;
             cursor: pointer;
-            transition: border-color 0.3s;
-        }
-        .form-select:focus {
-            outline: none;
-            border-color: #1890ff;
-            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
         }
         .btn-register {
             width: 100%;
-            height: 40px;
-            background: #52c41a;
+            height: 48px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             color: white;
-            font-size: 14px;
-            font-weight: 500;
+            font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: transform 0.2s;
+            margin: 20px 0;
         }
         .btn-register:hover {
-            background: #73d13d;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
         .link-text {
             text-align: center;
-            margin-top: 16px;
+            color: #666;
             font-size: 14px;
-            color: #8c8c8c;
         }
         .link-text a {
-            color: #1890ff;
+            color: #667eea;
             text-decoration: none;
+            font-weight: 500;
         }
         .link-text a:hover {
             text-decoration: underline;
         }
-        .row {
-            display: flex;
-            gap: 16px;
-        }
-        .col {
-            flex: 1;
-        }
         .alert {
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
             font-size: 14px;
             display: none;
         }
         .alert-success {
-            background: #f6ffed;
-            border: 1px solid #b7eb8f;
-            color: #52c41a;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
         }
         .alert-danger {
-            background: #fff2f0;
-            border: 1px solid #ffccc7;
-            color: #ff4d4f;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .version-tag {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #666;
         }
     </style>
 </head>
 <body>
-    <div class="register-container">
+    <div class="version-tag">v4.0 - 全新界面</div>
+    
+    <div class="register-card">
         <div class="header">
             <div class="logo">🚀 智能工时表管理系统</div>
             <div class="title">用户注册</div>
-            <div style="font-size: 12px; color: #999; margin-top: 8px;">v3.0 - 新版界面</div>
+            <div class="subtitle">创建您的账户开始使用</div>
         </div>
         
         <div id="message" class="alert"></div>
         
         <form id="registerForm">
-            <div class="form-group">
-                <label class="form-label">用户名</label>
-                <input type="text" class="form-control" id="username" required>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">邮箱</label>
-                <input type="email" class="form-control" id="email" required>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">用户名</label>
+                    <input type="text" class="form-control" id="username" required placeholder="请输入用户名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">邮箱</label>
+                    <input type="email" class="form-control" id="email" required placeholder="请输入邮箱">
+                </div>
             </div>
             
             <div class="form-group">
                 <label class="form-label">密码</label>
-                <input type="password" class="form-control" id="password" required minlength="6">
+                <input type="password" class="form-control" id="password" required minlength="6" placeholder="请输入密码（至少6位）">
             </div>
             
             <div class="form-group">
                 <label class="form-label">姓名</label>
-                <input type="text" class="form-control" id="name" required>
+                <input type="text" class="form-control" id="name" required placeholder="请输入您的真实姓名">
             </div>
             
-            <div class="row">
-                <div class="col">
-                    <div class="form-group">
-                        <label class="form-label">部门</label>
-                        <select class="form-select" id="department" required>
-                            <option value="">选择部门</option>
-                            <option value="销售部">销售部</option>
-                            <option value="市场部">市场部</option>
-                            <option value="技术部">技术部</option>
-                            <option value="运营部">运营部</option>
-                            <option value="财务部">财务部</option>
-                            <option value="人事部">人事部</option>
-                            <option value="管理层">管理层</option>
-                        </select>
-                    </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">部门</label>
+                    <select class="form-select" id="department" required>
+                        <option value="">选择部门</option>
+                        <option value="销售部">销售部</option>
+                        <option value="市场部">市场部</option>
+                        <option value="技术部">技术部</option>
+                        <option value="运营部">运营部</option>
+                        <option value="财务部">财务部</option>
+                        <option value="人事部">人事部</option>
+                        <option value="管理层">管理层</option>
+                    </select>
                 </div>
-                <div class="col">
-                    <div class="form-group">
-                        <label class="form-label">职位</label>
-                        <input type="text" class="form-control" id="position" placeholder="如：业务员，经理，专员" required>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">职位</label>
+                    <input type="text" class="form-control" id="position" required placeholder="如：业务员，经理，专员">
                 </div>
             </div>
             
-            <button type="submit" class="btn-register">注册</button>
+            <button type="submit" class="btn-register">立即注册</button>
         </form>
         
         <div class="link-text">
@@ -821,16 +846,34 @@ def register_page():
             e.preventDefault();
             
             const formData = {
-                username: document.getElementById('username').value,
-                email: document.getElementById('email').value,
+                username: document.getElementById('username').value.trim(),
+                email: document.getElementById('email').value.trim(),
                 password: document.getElementById('password').value,
-                name: document.getElementById('name').value,
+                name: document.getElementById('name').value.trim(),
                 department: document.getElementById('department').value,
-                position: document.getElementById('position').value,
-                role: '普通用户'  // 默认角色
+                position: document.getElementById('position').value.trim()
             };
             
+            // 表单验证
+            if (!formData.username || !formData.email || !formData.password || 
+                !formData.name || !formData.department || !formData.position) {
+                showMessage('请填写所有必填字段', 'danger');
+                return;
+            }
+            
+            if (formData.password.length < 6) {
+                showMessage('密码长度至少6位', 'danger');
+                return;
+            }
+            
             const messageDiv = document.getElementById('message');
+            messageDiv.style.display = 'none';
+            
+            // 显示加载状态
+            const submitBtn = document.querySelector('.btn-register');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = '注册中...';
+            submitBtn.disabled = true;
             
             try {
                 const response = await fetch('/api/register', {
@@ -844,24 +887,28 @@ def register_page():
                 const result = await response.json();
                 
                 if (result.success) {
-                    messageDiv.className = 'alert alert-success';
-                    messageDiv.textContent = '注册成功！正在跳转到登录页面...';
-                    messageDiv.style.display = 'block';
-                    
+                    showMessage('注册成功！正在跳转到登录页面...', 'success');
                     setTimeout(() => {
                         window.location.href = '/login';
                     }, 2000);
                 } else {
-                    messageDiv.className = 'alert alert-danger';
-                    messageDiv.textContent = result.error || '注册失败';
-                    messageDiv.style.display = 'block';
+                    showMessage(result.error || '注册失败，请重试', 'danger');
                 }
             } catch (error) {
-                messageDiv.className = 'alert alert-danger';
-                messageDiv.textContent = '网络错误，请重试';
-                messageDiv.style.display = 'block';
+                showMessage('网络错误，请检查网络连接后重试', 'danger');
+                console.error('Registration error:', error);
+            } finally {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
             }
         });
+        
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = `alert alert-${type}`;
+            messageDiv.textContent = text;
+            messageDiv.style.display = 'block';
+        }
     </script>
 </body>
 </html>
@@ -1376,7 +1423,7 @@ def index():
     if 'user_id' in session:
         return redirect('/dashboard')
     else:
-        return redirect('/login')
+        return redirect('/register')
 
 @app.route('/old-index')
 def old_index():
