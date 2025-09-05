@@ -10,6 +10,8 @@ import sqlite3
 import secrets
 import bcrypt
 import re
+import requests
+import json
 from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template_string, request, jsonify, session, redirect, url_for
@@ -24,8 +26,8 @@ app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 try:
     from config import AMAP_API_KEY, AMAP_SECRET_KEY
 except ImportError:
-    AMAP_API_KEY = os.environ.get('AMAP_API_KEY', 'your_amap_api_key_here')
-    AMAP_SECRET_KEY = os.environ.get('AMAP_SECRET_KEY', 'your_amap_secret_key_here')
+    AMAP_API_KEY = os.environ.get('AMAP_API_KEY', 'a1b01cbf9ad903621215aca53d54bd62')
+    AMAP_SECRET_KEY = os.environ.get('AMAP_SECRET_KEY', 'd47c23406c464aca6c15995aea1ae5dc')
 
 def init_db():
     """初始化数据库"""
@@ -277,7 +279,7 @@ def register_page():
 </head>
 <body>
     <div class="register-card">
-        <div class="version-badge">V4.1 部门修复</div>
+        <div class="version-badge">V4.2 路程计算</div>
         
         <div class="header">
             <div class="logo">🚀 智能工时表管理系统</div>
@@ -677,6 +679,42 @@ def dashboard():
             padding: 30px;
             margin-bottom: 20px;
         }
+        .distance-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        .distance-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .distance-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+        .distance-item {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 8px;
+        }
+        .distance-item .label {
+            display: block;
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        .distance-item .value {
+            display: block;
+            font-size: 18px;
+            font-weight: bold;
+        }
         .card h4 {
             margin-bottom: 20px;
             color: #2c3e50;
@@ -772,14 +810,38 @@ def dashboard():
                 <form id="timesheetForm">
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">门店编码</label>
-                            <input type="text" class="form-control" id="storeCode" required placeholder="输入门店编码">
+                            <label class="form-label">门店名称</label>
+                            <input type="text" class="form-control" id="storeName" required placeholder="输入门店名称" 
+                                   list="storeList" onchange="calculateDistance()">
+                            <datalist id="storeList">
+                                <!-- 动态加载门店列表 -->
+                            </datalist>
                         </div>
                         <div class="form-group">
                             <label class="form-label">工作日期</label>
                             <input type="date" class="form-control" id="workDate" required>
                         </div>
                     </div>
+                    
+                    <!-- 路程信息显示区域 -->
+                    <div id="distanceInfo" class="distance-card" style="display: none;">
+                        <div class="distance-header">🚗 路程信息</div>
+                        <div class="distance-content">
+                            <div class="distance-item">
+                                <span class="label">距离：</span>
+                                <span id="distanceValue" class="value">-</span>
+                            </div>
+                            <div class="distance-item">
+                                <span class="label">预计时间：</span>
+                                <span id="durationValue" class="value">-</span>
+                            </div>
+                            <div class="distance-item">
+                                <span class="label">门店地址：</span>
+                                <span id="storeAddress" class="value">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">开始时间</label>
@@ -827,6 +889,7 @@ def dashboard():
 
         document.addEventListener('DOMContentLoaded', async () => {
             await loadUserInfo();
+            await loadStoreList();
             setDefaultDate();
         });
 
@@ -856,6 +919,126 @@ def dashboard():
             document.getElementById('workDate').value = today;
         }
 
+        // 加载门店列表到datalist
+        async function loadStoreList() {
+            try {
+                const response = await fetch('/api/stores?limit=100');
+                const data = await response.json();
+                
+                if (data.success && data.stores) {
+                    const datalist = document.getElementById('storeList');
+                    datalist.innerHTML = '';
+                    
+                    data.stores.forEach(store => {
+                        const option = document.createElement('option');
+                        option.value = store.store_name;
+                        option.dataset.code = store.store_code;
+                        option.dataset.address = store.address;
+                        option.dataset.longitude = store.longitude;
+                        option.dataset.latitude = store.latitude;
+                        datalist.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('加载门店列表失败:', error);
+            }
+        }
+
+        // 计算到门店的距离和时间
+        async function calculateDistance() {
+            const storeNameInput = document.getElementById('storeName');
+            const storeName = storeNameInput.value.trim();
+            const distanceInfo = document.getElementById('distanceInfo');
+            
+            if (!storeName) {
+                distanceInfo.style.display = 'none';
+                return;
+            }
+            
+            // 从datalist中找到对应的门店信息
+            const options = document.querySelectorAll('#storeList option');
+            let selectedStore = null;
+            
+            for (const option of options) {
+                if (option.value === storeName) {
+                    selectedStore = {
+                        name: option.value,
+                        code: option.dataset.code,
+                        address: option.dataset.address,
+                        longitude: parseFloat(option.dataset.longitude),
+                        latitude: parseFloat(option.dataset.latitude)
+                    };
+                    break;
+                }
+            }
+            
+            if (!selectedStore) {
+                distanceInfo.style.display = 'none';
+                return;
+            }
+            
+            // 显示门店地址
+            document.getElementById('storeAddress').textContent = selectedStore.address;
+            distanceInfo.style.display = 'block';
+            
+            // 获取用户当前位置并计算距离
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+                        
+                        try {
+                            // 调用高德地图API计算距离和时间
+                            const distance = await getDistanceFromAmap(
+                                userLng, userLat, 
+                                selectedStore.longitude, selectedStore.latitude
+                            );
+                            
+                            document.getElementById('distanceValue').textContent = distance.distance;
+                            document.getElementById('durationValue').textContent = distance.duration;
+                        } catch (error) {
+                            console.error('计算距离失败:', error);
+                            document.getElementById('distanceValue').textContent = '计算失败';
+                            document.getElementById('durationValue').textContent = '计算失败';
+                        }
+                    },
+                    (error) => {
+                        console.error('获取位置失败:', error);
+                        document.getElementById('distanceValue').textContent = '无法获取位置';
+                        document.getElementById('durationValue').textContent = '无法获取位置';
+                    }
+                );
+            } else {
+                document.getElementById('distanceValue').textContent = '不支持定位';
+                document.getElementById('durationValue').textContent = '不支持定位';
+            }
+        }
+
+        // 调用高德地图API计算距离
+        async function getDistanceFromAmap(originLng, originLat, destLng, destLat) {
+            try {
+                const response = await fetch('/api/calculate-distance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        origin: `${originLng},${originLat}`,
+                        destination: `${destLng},${destLat}`
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    return result.data;
+                } else {
+                    throw new Error(result.error);
+                }
+            } catch (error) {
+                console.error('API调用失败:', error);
+                throw error;
+            }
+        }
+
         function showPage(pageId) {
             document.querySelectorAll('.page-content').forEach(page => {
                 page.classList.add('hidden');
@@ -877,8 +1060,32 @@ def dashboard():
         document.getElementById('timesheetForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            // 获取门店名称并查找对应的门店编码
+            const storeName = document.getElementById('storeName').value.trim();
+            if (!storeName) {
+                alert('请选择门店名称');
+                return;
+            }
+            
+            // 从datalist中找到门店编码
+            const options = document.querySelectorAll('#storeList option');
+            let storeCode = null;
+            
+            for (const option of options) {
+                if (option.value === storeName) {
+                    storeCode = option.dataset.code;
+                    break;
+                }
+            }
+            
+            if (!storeCode) {
+                alert('请从列表中选择有效的门店名称');
+                return;
+            }
+            
             const formData = {
-                store_code: document.getElementById('storeCode').value,
+                store_code: storeCode,
+                store_name: storeName,
                 work_date: document.getElementById('workDate').value,
                 start_time: document.getElementById('startTime').value,
                 end_time: document.getElementById('endTime').value,
@@ -948,14 +1155,79 @@ def health_check():
         return jsonify({
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
-            'version': '4.1.1',
-            'build': 'force-railway-rebuild-2025-09-05-v2'
+            'version': '4.2.0',
+            'build': 'distance-calculation-2025-09-05'
         })
     except Exception as e:
         return jsonify({
             'status': 'unhealthy',
             'error': str(e)
         }), 500
+
+@app.route('/api/calculate-distance', methods=['POST'])
+@login_required
+def calculate_distance():
+    """计算两点间距离和时间"""
+    data = request.get_json()
+    
+    if not data.get('origin') or not data.get('destination'):
+        return jsonify({'error': '缺少起点或终点坐标'}), 400
+    
+    try:
+        # 调用高德地图路径规划API
+        url = 'https://restapi.amap.com/v3/direction/driving'
+        params = {
+            'key': AMAP_API_KEY,
+            'origin': data['origin'],
+            'destination': data['destination'],
+            'extensions': 'all'
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        result = response.json()
+        
+        if result.get('status') == '1' and result.get('route'):
+            # 解析结果
+            paths = result['route']['paths']
+            if paths:
+                path = paths[0]  # 取第一条路径
+                distance_m = int(path['distance'])  # 米
+                duration_s = int(path['duration'])  # 秒
+                
+                # 格式化距离
+                if distance_m >= 1000:
+                    distance_str = f"{distance_m / 1000:.1f}公里"
+                else:
+                    distance_str = f"{distance_m}米"
+                
+                # 格式化时间
+                duration_min = duration_s // 60
+                if duration_min >= 60:
+                    hours = duration_min // 60
+                    minutes = duration_min % 60
+                    duration_str = f"{hours}小时{minutes}分钟"
+                else:
+                    duration_str = f"{duration_min}分钟"
+                
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'distance': distance_str,
+                        'duration': duration_str,
+                        'distance_value': distance_m,
+                        'duration_value': duration_s
+                    }
+                })
+            else:
+                return jsonify({'error': '未找到路径'}), 400
+        else:
+            error_msg = result.get('info', '高德API调用失败')
+            return jsonify({'error': f'路径计算失败: {error_msg}'}), 400
+            
+    except requests.RequestException as e:
+        return jsonify({'error': f'网络请求失败: {str(e)}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'计算距离失败: {str(e)}'}), 500
 
 @app.route('/api/register', methods=['POST'])
 def register():
