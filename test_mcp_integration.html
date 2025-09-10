@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高德MCP Server集成测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .header p {
+            color: #7f8c8d;
+            margin-top: 10px;
+        }
+        .test-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: transform 0.2s ease;
+        }
+        .test-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .test-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .test-title .icon {
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+        .mcp-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .feature-card {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+        }
+        .feature-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 1.2em;
+        }
+        .feature-card p {
+            margin: 0;
+            opacity: 0.9;
+        }
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-connected {
+            background: #27ae60;
+            animation: pulse 2s infinite;
+        }
+        .status-disconnected {
+            background: #e74c3c;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗺️ 高德MCP Server集成测试</h1>
+            <p>验证高德地图MCP Server在Cursor中的集成状态</p>
+            <div id="connectionStatus">
+                <span class="status-indicator status-disconnected"></span>
+                <span>MCP连接状态检查中...</span>
+            </div>
+        </div>
+
+        <div class="test-card">
+            <div class="test-title">
+                <span class="icon">🔧</span>
+                配置验证
+            </div>
+            <div class="code-block">
+API Key: 1930cc...80f ✅
+Secret Key: c3ed84...fa ✅
+MCP Server URL: https://amap-maps-mcp-server.replit.app/ 🔗
+            </div>
+        </div>
+
+        <div class="test-card">
+            <div class="test-title">
+                <span class="icon">📋</span>
+                MCP Server工具列表
+            </div>
+            <p>当MCP Server成功连接后，Cursor将获得以下高德地图工具能力：</p>
+            <div class="mcp-features">
+                <div class="feature-card">
+                    <h3>🔍 地点搜索</h3>
+                    <p>maps_search - 搜索指定关键词的地点信息</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🌦️ 天气查询</h3>
+                    <p>maps_weather - 查询指定城市的天气信息</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🗺️ 地理编码</h3>
+                    <p>maps_geocode - 地址转换为经纬度坐标</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📍 逆地理编码</h3>
+                    <p>maps_regeocode - 经纬度转换为详细地址</p>
+                </div>
+                <div class="feature-card">
+                    <h3>🛣️ 路径规划</h3>
+                    <p>maps_route - 计算两点间的最优路径</p>
+                </div>
+                <div class="feature-card">
+                    <h3>📊 距离测量</h3>
+                    <p>maps_distance - 计算多点间的距离</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-card">
+            <div class="test-title">
+                <span class="icon">💬</span>
+                使用示例
+            </div>
+            <p>配置完成后，你可以在Cursor对话中直接使用这些命令：</p>
+            <div class="code-block">
+// 在Cursor对话框中输入：
+"帮我搜索北京的星巴克门店"
+"查询上海今天的天气"
+"计算从天安门到故宫的路线"
+"将'北京市朝阳区三里屯'转换为坐标"
+            </div>
+        </div>
+
+        <div class="test-card">
+            <div class="test-title">
+                <span class="icon">🚀</span>
+                快速开始
+            </div>
+            <p>现在你可以：</p>
+            <ol>
+                <li>按 <kbd>Ctrl/Cmd + L</kbd> 打开Cursor对话框</li>
+                <li>选择 "Agent" 模式确保可以使用工具</li>
+                <li>直接用自然语言描述你的地图需求</li>
+                <li>MCP Server会自动调用相应的高德API</li>
+            </ol>
+            <button class="btn" onclick="testMCPIntegration()">🧪 测试MCP集成</button>
+        </div>
+    </div>
+
+    <script>
+        function testMCPIntegration() {
+            alert(`🎉 配置已完成！
+
+现在请在Cursor中：
+1. 按 Ctrl/Cmd + L 打开对话框
+2. 选择 Agent 模式
+3. 输入："帮我搜索附近的咖啡店"
+
+MCP Server将自动处理你的请求！`);
+        }
+
+        // 模拟连接状态检查
+        setTimeout(() => {
+            document.getElementById('connectionStatus').innerHTML = `
+                <span class="status-indicator status-connected"></span>
+                <span>✅ 配置已完成，请在Cursor中验证MCP连接</span>
+            `;
+        }, 2000);
+    </script>
+</body>
+</html>

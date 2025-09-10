@@ -165,6 +165,22 @@ def init_db():
                 )
             ''')
             
+            # 创建用户月度默认设置表
+            db.execute('''
+                CREATE TABLE IF NOT EXISTS user_monthly_defaults (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    year INTEGER NOT NULL,
+                    month INTEGER NOT NULL,
+                    business_trip_days INTEGER DEFAULT 1,
+                    actual_visit_days INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id),
+                    UNIQUE(user_id, year, month)
+                )
+            ''')
+            
             # 检查并添加新字段（兼容现有数据库）
             try:
                 # 检查用户表字段
@@ -894,14 +910,6 @@ USER_INPUT_TEMPLATE = '''
                         <input type="number" id="actualVisitDays" name="actualVisitDays" value="1" min="1" required>
                         <small style="color: #666; font-size: 12px;">实际用于巡店的天数（排除路途时间），如出差20天，路途2天，则填写18天</small>
                     </div>
-                    <div class="form-group">
-                        <label for="storeCount">巡店门店数 <span class="required">*</span></label>
-                        <input type="number" id="storeCount" name="storeCount" value="1" min="1" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="auditStoreCount">稽核家数 (自动计算)</label>
-                        <input type="number" id="auditStoreCount" name="auditStoreCount" readonly>
-                    </div>
                 </div>
 
                 <div class="section-title">门店与路线信息</div>
@@ -1200,7 +1208,6 @@ USER_INPUT_TEMPLATE = '''
 
         // 计算各项数值
         function calculateValues() {
-            const storeCount = parseFloat(document.getElementById('storeCount').value) || 0;
             const travelHoursInput = document.getElementById('travelHours');
             const transportMode = document.getElementById('transportMode').value;
             
@@ -1214,9 +1221,6 @@ USER_INPUT_TEMPLATE = '''
             const visitHours = parseFloat(document.getElementById('visitHours').value) || 0;
             const reportHours = parseFloat(document.getElementById('reportHours').value) || 0;
             
-            // 稽核家数 = 门店数
-            document.getElementById('auditStoreCount').value = storeCount;
-            
             // 合计工时
             const totalWorkHours = travelHours + visitHours + reportHours;
             document.getElementById('totalWorkHours').value = totalWorkHours.toFixed(2);
@@ -1224,7 +1228,7 @@ USER_INPUT_TEMPLATE = '''
 
         // 设置计算监听器
         function setupCalculations() {
-            const fields = ['storeCount', 'travelHours', 'visitHours', 'reportHours'];
+            const fields = ['travelHours', 'visitHours', 'reportHours'];
             fields.forEach(fieldId => {
                 document.getElementById(fieldId).addEventListener('input', calculateValues);
             });
@@ -1690,12 +1694,67 @@ USER_INPUT_TEMPLATE = '''
             }
         }
 
+        // 加载月度默认设置
+        async function loadMonthlyDefaults() {
+            try {
+                const response = await fetch('/api/monthly_defaults', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.defaults) {
+                    document.getElementById('businessTripDays').value = result.defaults.business_trip_days;
+                    document.getElementById('actualVisitDays').value = result.defaults.actual_visit_days;
+                }
+            } catch (error) {
+                console.error('加载月度默认设置失败:', error);
+            }
+        }
+
+        // 保存月度默认设置
+        async function saveMonthlyDefaults() {
+            try {
+                const businessTripDays = parseInt(document.getElementById('businessTripDays').value) || 1;
+                const actualVisitDays = parseInt(document.getElementById('actualVisitDays').value) || 1;
+                
+                const response = await fetch('/api/monthly_defaults', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        business_trip_days: businessTripDays,
+                        actual_visit_days: actualVisitDays
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    console.error('保存月度默认设置失败:', result.message);
+                }
+            } catch (error) {
+                console.error('保存月度默认设置失败:', error);
+            }
+        }
+
         // 页面初始化
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('workDate').value = new Date().toISOString().split('T')[0];
             setupCalculations();
             setupStoreSearch();
             calculateValues();
+            
+            // 加载月度默认设置
+            loadMonthlyDefaults();
+            
+            // 添加月度默认设置保存监听器
+            document.getElementById('businessTripDays').addEventListener('blur', saveMonthlyDefaults);
+            document.getElementById('actualVisitDays').addEventListener('blur', saveMonthlyDefaults);
             
             // 添加交通方式改变监听器
             document.getElementById('transportMode').addEventListener('change', handleTransportModeChange);
@@ -2173,14 +2232,6 @@ USER_RECORDS_TEMPLATE = '''
                             <label for="actualVisitDays">实际巡店天数 <span class="required">*</span></label>
                             <input type="number" id="actualVisitDays" name="actualVisitDays" value="1" min="1" required>
                             <small style="color: #666; font-size: 12px;">实际用于巡店的天数（排除路途时间），如出差20天，路途2天，则填写18天</small>
-                        </div>
-                        <div class="form-group">
-                            <label for="storeCount">巡店门店数 <span class="required">*</span></label>
-                            <input type="number" id="storeCount" name="storeCount" value="1" min="1" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="auditStoreCount">稽核家数 (自动计算)</label>
-                            <input type="number" id="auditStoreCount" name="auditStoreCount" readonly>
                         </div>
                     </div>
 
@@ -3012,12 +3063,6 @@ USER_RECORDS_TEMPLATE = '''
             // 设置默认日期
             document.getElementById('workDate').value = new Date().toISOString().split('T')[0];
             
-            // 监听巡店门店数变化，自动计算稽核家数
-            document.getElementById('storeCount').addEventListener('input', function() {
-                const storeCount = parseInt(this.value) || 0;
-                const auditStoreCount = Math.max(1, Math.ceil(storeCount * 0.3)); // 30%稽核率，最少1家
-                document.getElementById('auditStoreCount').value = auditStoreCount;
-            });
             
             // 监听出差天数和实际巡店天数的关系验证
             function validateVisitDays() {
@@ -5605,7 +5650,7 @@ def api_create_timesheet():
             data.get('workDate'),
             safe_int(data.get('businessTripDays', 1), 1),
             safe_int(data.get('actualVisitDays', 1), 1),
-            safe_int(data.get('auditStoreCount', 1), 1),
+            1,  # audit_store_count 默认设为1
             0,  # training_store_count 设为0
             data.get('startStore', ''),
             data.get('endStore', ''),
@@ -5739,6 +5784,78 @@ def api_delete_timesheet(record_id):
     except Exception as e:
         print(f"删除工时记录失败: {e}")
         return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/monthly_defaults', methods=['GET'])
+def api_get_monthly_defaults():
+    """获取当前用户本月的默认设置"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+    
+    try:
+        from datetime import datetime
+        now = datetime.now()
+        year = now.year
+        month = now.month
+        
+        with get_db_connection() as db:
+            # 查询当前月份的默认设置
+            defaults = db.execute('''
+                SELECT business_trip_days, actual_visit_days
+                FROM user_monthly_defaults
+                WHERE user_id = ? AND year = ? AND month = ?
+            ''', (session['user_id'], year, month)).fetchone()
+            
+            if defaults:
+                return jsonify({
+                    'success': True,
+                    'defaults': {
+                        'business_trip_days': defaults[0],
+                        'actual_visit_days': defaults[1]
+                    }
+                })
+            else:
+                # 没有默认设置，返回系统默认值
+                return jsonify({
+                    'success': True,
+                    'defaults': {
+                        'business_trip_days': 1,
+                        'actual_visit_days': 1
+                    }
+                })
+    except Exception as e:
+        logger.error(f"获取月度默认设置失败: {e}")
+        return jsonify({'success': False, 'message': '获取默认设置失败'})
+
+@app.route('/api/monthly_defaults', methods=['POST'])
+def api_save_monthly_defaults():
+    """保存当前用户本月的默认设置"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+    
+    try:
+        data = request.get_json()
+        business_trip_days = int(data.get('business_trip_days', 1))
+        actual_visit_days = int(data.get('actual_visit_days', 1))
+        
+        from datetime import datetime
+        now = datetime.now()
+        year = now.year
+        month = now.month
+        
+        with get_db_connection() as db:
+            # 使用 INSERT OR REPLACE 来更新或插入记录
+            db.execute('''
+                INSERT OR REPLACE INTO user_monthly_defaults 
+                (user_id, year, month, business_trip_days, actual_visit_days, updated_at)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (session['user_id'], year, month, business_trip_days, actual_visit_days))
+            
+            db.commit()
+            
+        return jsonify({'success': True, 'message': '月度默认设置保存成功'})
+    except Exception as e:
+        logger.error(f"保存月度默认设置失败: {e}")
+        return jsonify({'success': False, 'message': '保存默认设置失败'})
 
 @app.route('/api/tencent_usage_stats')
 def api_tencent_usage_stats():

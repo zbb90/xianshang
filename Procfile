@@ -1,2 +1,1 @@
-web: gunicorn -c gunicorn.conf.py wsgi:app --reload
-release: python -c "from app import init_db; init_db(); print('🚀 v4.2.1 DEPLOYED SUCCESSFULLY')"
+web: gunicorn app_clean:app -w 2 -b 0.0.0.0:$PORT
