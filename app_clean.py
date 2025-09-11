@@ -924,64 +924,10 @@ USER_INPUT_TEMPLATE = '''
                     </div>
                     <div class="form-group">
                         <label for="startCity">出发城市</label>
-                        <select id="startCity" name="startCity">
-                            <option value="">全国搜索</option>
-                            <option value="北京">北京</option>
-                            <option value="上海">上海</option>
-                            <option value="广州">广州</option>
-                            <option value="深圳">深圳</option>
-                            <option value="杭州">杭州</option>
-                            <option value="南京">南京</option>
-                            <option value="苏州">苏州</option>
-                            <option value="成都">成都</option>
-                            <option value="重庆">重庆</option>
-                            <option value="武汉">武汉</option>
-                            <option value="西安">西安</option>
-                            <option value="青岛">青岛</option>
-                            <option value="大连">大连</option>
-                            <option value="宁波">宁波</option>
-                            <option value="厦门">厦门</option>
-                            <option value="福州">福州</option>
-                            <option value="济南">济南</option>
-                            <option value="长沙">长沙</option>
-                            <option value="郑州">郑州</option>
-                            <option value="石家庄">石家庄</option>
-                            <option value="哈尔滨">哈尔滨</option>
-                            <option value="长春">长春</option>
-                            <option value="沈阳">沈阳</option>
-                            <option value="太原">太原</option>
-                            <option value="合肥">合肥</option>
-                            <option value="南昌">南昌</option>
-                            <option value="南宁">南宁</option>
-                            <option value="昆明">昆明</option>
-                            <option value="贵阳">贵阳</option>
-                            <option value="兰州">兰州</option>
-                            <option value="银川">银川</option>
-                            <option value="西宁">西宁</option>
-                            <option value="乌鲁木齐">乌鲁木齐</option>
-                            <option value="拉萨">拉萨</option>
-                            <option value="海口">海口</option>
-                            <option value="三亚">三亚</option>
-                            <option value="台州">台州</option>
-                            <option value="温州">温州</option>
-                            <option value="金华">金华</option>
-                            <option value="绍兴">绍兴</option>
-                            <option value="嘉兴">嘉兴</option>
-                            <option value="湖州">湖州</option>
-                            <option value="舟山">舟山</option>
-                            <option value="衢州">衢州</option>
-                            <option value="丽水">丽水</option>
-                            <option value="上饶">上饶</option>
-                            <option value="九江">九江</option>
-                            <option value="景德镇">景德镇</option>
-                            <option value="萍乡">萍乡</option>
-                            <option value="新余">新余</option>
-                            <option value="鹰潭">鹰潭</option>
-                            <option value="赣州">赣州</option>
-                            <option value="宜春">宜春</option>
-                            <option value="抚州">抚州</option>
-                            <option value="吉安">吉安</option>
-                        </select>
+                        <input type="text" id="startCity" name="startCity" placeholder="请输入城市名称，如：北京、上海、广州" autocomplete="off">
+                        <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">
+                            💡 输入标准：请输入完整的城市名称，如"北京市"、"上海市"、"广州市"等。支持全国所有城市，留空则全国搜索。
+                        </small>
                     </div>
                     <div class="form-group">
                         <label for="startStore">出发门店 <span class="required">*</span></label>
@@ -2194,64 +2140,10 @@ USER_RECORDS_TEMPLATE = '''
                         </div>
                         <div class="form-group">
                             <label for="startCity">出发城市</label>
-                            <select id="startCity" name="startCity">
-                                <option value="">全国搜索</option>
-                                <option value="北京">北京</option>
-                                <option value="上海">上海</option>
-                                <option value="广州">广州</option>
-                                <option value="深圳">深圳</option>
-                                <option value="杭州">杭州</option>
-                                <option value="南京">南京</option>
-                                <option value="苏州">苏州</option>
-                                <option value="成都">成都</option>
-                                <option value="重庆">重庆</option>
-                                <option value="武汉">武汉</option>
-                                <option value="西安">西安</option>
-                                <option value="青岛">青岛</option>
-                                <option value="大连">大连</option>
-                                <option value="宁波">宁波</option>
-                                <option value="厦门">厦门</option>
-                                <option value="福州">福州</option>
-                                <option value="济南">济南</option>
-                                <option value="长沙">长沙</option>
-                                <option value="郑州">郑州</option>
-                                <option value="石家庄">石家庄</option>
-                                <option value="哈尔滨">哈尔滨</option>
-                                <option value="长春">长春</option>
-                                <option value="沈阳">沈阳</option>
-                                <option value="太原">太原</option>
-                                <option value="合肥">合肥</option>
-                                <option value="南昌">南昌</option>
-                                <option value="南宁">南宁</option>
-                                <option value="昆明">昆明</option>
-                                <option value="贵阳">贵阳</option>
-                                <option value="兰州">兰州</option>
-                                <option value="银川">银川</option>
-                                <option value="西宁">西宁</option>
-                                <option value="乌鲁木齐">乌鲁木齐</option>
-                                <option value="拉萨">拉萨</option>
-                                <option value="海口">海口</option>
-                                <option value="三亚">三亚</option>
-                                <option value="台州">台州</option>
-                                <option value="温州">温州</option>
-                                <option value="金华">金华</option>
-                                <option value="绍兴">绍兴</option>
-                                <option value="嘉兴">嘉兴</option>
-                                <option value="湖州">湖州</option>
-                                <option value="舟山">舟山</option>
-                                <option value="衢州">衢州</option>
-                                <option value="丽水">丽水</option>
-                                <option value="上饶">上饶</option>
-                                <option value="九江">九江</option>
-                                <option value="景德镇">景德镇</option>
-                                <option value="萍乡">萍乡</option>
-                                <option value="新余">新余</option>
-                                <option value="鹰潭">鹰潭</option>
-                                <option value="赣州">赣州</option>
-                                <option value="宜春">宜春</option>
-                                <option value="抚州">抚州</option>
-                                <option value="吉安">吉安</option>
-                            </select>
+                            <input type="text" id="startCity" name="startCity" placeholder="请输入城市名称，如：北京、上海、广州" autocomplete="off">
+                            <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">
+                                💡 输入标准：请输入完整的城市名称，如"北京市"、"上海市"、"广州市"等。支持全国所有城市，留空则全国搜索。
+                            </small>
                         </div>
                         <div class="form-group">
                             <label for="startStore">出发门店 <span class="required">*</span></label>
@@ -3628,10 +3520,9 @@ def calculate_route(start_store, end_store, transport_mode='driving', route_stra
                     duration += 0.16
                     logger.info(f"驾车模式：添加0.16小时停车时长")
                 elif transport_mode == 'taxi':
-                    # 打车：使用驾车算法（包括0.16小时停车）+ 0.083小时等待时长
-                    duration += 0.16  # 先添加驾车的停车时长
-                    duration += 0.083  # 再添加打车的等待时长
-                    logger.info(f"打车模式：添加0.16小时停车时长 + 0.083小时等待时长 = 0.243小时")
+                    # 打车：使用高德自驾路线时间 + 0.083小时等待时长
+                    duration += 0.083  # 只添加打车的等待时长
+                    logger.info(f"打车模式：添加0.083小时等待时长")
                 
                 # 获取路线详细信息
                 traffic_lights = best_path.get('traffic_lights', 0)  # 红绿灯数量
