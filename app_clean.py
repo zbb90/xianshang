@@ -1055,6 +1055,7 @@ USER_INPUT_TEMPLATE = '''
             const startStoreInput = document.getElementById('startStore');
             const endStoreInput = document.getElementById('endStore');
             const transportMode = document.getElementById('transportMode').value;
+            const calculateBtn = document.querySelector('button[onclick="calculateRoute()"]');
             
             // 获取门店名称和坐标
             const startStore = startStoreInput.value; // 使用门店名称
@@ -1068,6 +1069,13 @@ USER_INPUT_TEMPLATE = '''
                 alert('请先选择出发门店和目标门店');
                 return;
             }
+            
+            // 显示loading状态
+            const originalText = calculateBtn.textContent;
+            calculateBtn.textContent = '计算中...';
+            calculateBtn.disabled = true;
+            calculateBtn.style.opacity = '0.6';
+            calculateBtn.style.cursor = 'not-allowed';
             
             try {
                 const response = await fetch('/api/calculate_route', {
@@ -1090,12 +1098,30 @@ USER_INPUT_TEMPLATE = '''
                     document.getElementById('roundTripDistance').value = result.distance;
                     document.getElementById('travelHours').value = result.duration.toFixed(2);
                     calculateValues();
+                    
+                    // 显示成功反馈
+                    calculateBtn.textContent = '计算完成 ✓';
+                    calculateBtn.style.backgroundColor = '#28a745';
+                    setTimeout(() => {
+                        calculateBtn.textContent = originalText;
+                        calculateBtn.style.backgroundColor = '';
+                    }, 1500);
                 } else {
                     alert('路程计算失败：' + result.message);
                 }
             } catch (error) {
                 alert('网络错误，请稍后重试');
                 console.error('Error:', error);
+            } finally {
+                // 恢复按钮状态
+                setTimeout(() => {
+                    calculateBtn.disabled = false;
+                    calculateBtn.style.opacity = '1';
+                    calculateBtn.style.cursor = 'pointer';
+                    if (calculateBtn.textContent === '计算中...') {
+                        calculateBtn.textContent = originalText;
+                    }
+                }, 500);
             }
         }
 
@@ -1148,6 +1174,10 @@ USER_INPUT_TEMPLATE = '''
                     return;
                 }
                 
+                // 显示搜索中状态
+                resultsDiv.innerHTML = '<div class="search-result-item" style="color: #007bff; padding: 8px;">🔍 搜索中...</div>';
+                resultsDiv.style.display = 'block';
+                
                 searchTimeout = setTimeout(async () => {
                     try {
                         // 判断是搜索出发门店还是目标门店，使用对应的城市选择
@@ -1182,7 +1212,8 @@ USER_INPUT_TEMPLATE = '''
                         }
                     } catch (error) {
                         console.error('搜索失败:', error);
-                        resultsDiv.style.display = 'none';
+                        resultsDiv.innerHTML = '<div class="search-result-item" style="color: #e74c3c; padding: 8px;">⚠️ 搜索失败，请稍后重试</div>';
+                        resultsDiv.style.display = 'block';
                     }
                 }, 300);
             });
@@ -2465,11 +2496,21 @@ USER_RECORDS_TEMPLATE = '''
             const startStore = document.getElementById('startStore').value;
             const endStore = document.getElementById('endStore').value;
             const transportMode = document.getElementById('transportMode').value;
+            const calculateBtn = document.querySelector('.route-info button[onclick="calculateRoute()"]');
+            const routeResult = document.getElementById('routeResult');
             
             if (!startStore || !endStore) {
                 alert('请先选择出发门店和目标门店');
                 return;
             }
+            
+            // 显示loading状态
+            const originalText = calculateBtn.textContent;
+            calculateBtn.textContent = '计算中...';
+            calculateBtn.disabled = true;
+            calculateBtn.style.opacity = '0.6';
+            calculateBtn.style.cursor = 'not-allowed';
+            routeResult.innerHTML = '<span style="color: #007bff;">🔄 正在计算路线...</span>';
             
             // 获取已保存的坐标
             const startLocation = document.getElementById('startStore').getAttribute('data-location');
@@ -2493,15 +2534,33 @@ USER_RECORDS_TEMPLATE = '''
                 const result = await response.json();
                 
                 if (result.success) {
-                    document.getElementById('routeResult').innerHTML = 
+                    routeResult.innerHTML = 
                         `<span style="color: #27ae60;">✓ ${result.distance}km, ${result.duration}小时</span>`;
+                    
+                    // 显示成功反馈
+                    calculateBtn.textContent = '计算完成 ✓';
+                    calculateBtn.style.backgroundColor = '#28a745';
+                    setTimeout(() => {
+                        calculateBtn.textContent = originalText;
+                        calculateBtn.style.backgroundColor = '';
+                    }, 1500);
                 } else {
-                    document.getElementById('routeResult').innerHTML = 
+                    routeResult.innerHTML = 
                         `<span style="color: #e74c3c;">✗ ${result.message}</span>`;
                 }
             } catch (error) {
-                document.getElementById('routeResult').innerHTML = 
+                routeResult.innerHTML = 
                     `<span style="color: #e74c3c;">✗ 计算失败，请稍后重试</span>`;
+            } finally {
+                // 恢复按钮状态
+                setTimeout(() => {
+                    calculateBtn.disabled = false;
+                    calculateBtn.style.opacity = '1';
+                    calculateBtn.style.cursor = 'pointer';
+                    if (calculateBtn.textContent === '计算中...') {
+                        calculateBtn.textContent = originalText;
+                    }
+                }, 500);
             }
         }
         
@@ -2519,6 +2578,9 @@ USER_RECORDS_TEMPLATE = '''
                     results.innerHTML = '';
                     return;
                 }
+                
+                // 显示搜索中状态
+                results.innerHTML = '<div class="search-result-item" style="color: #007bff;">🔍 搜索中...</div>';
                 
                 searchTimeout = setTimeout(async () => {
                     try {
@@ -2546,10 +2608,10 @@ USER_RECORDS_TEMPLATE = '''
                         if (data.success && data.locations) {
                             showSearchResults(data.locations, results, input);
                         } else {
-                            results.innerHTML = '<div class="search-result-item">未找到相关门店</div>';
+                            results.innerHTML = '<div class="search-result-item" style="color: #666;">📍 未找到相关门店</div>';
                         }
                     } catch (error) {
-                        results.innerHTML = '<div class="search-result-item">搜索失败，请稍后重试</div>';
+                        results.innerHTML = '<div class="search-result-item" style="color: #e74c3c;">⚠️ 搜索失败，请稍后重试</div>';
                     }
                 }, 300);
             });
