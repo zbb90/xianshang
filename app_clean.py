@@ -1065,6 +1065,7 @@ USER_INPUT_TEMPLATE = '''
                             <option value="bus">大巴</option>
                             <option value="train">高铁</option>
                             <option value="airplane">飞机</option>
+                            <option value="walking">步行</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -3735,15 +3736,10 @@ def calculate_route(start_store, end_store, transport_mode='driving', route_stra
                     duration += 0.16
                     logger.info(f"驾车模式：添加0.16小时停车时长")
                 elif transport_mode == 'taxi':
-                    # 打车：添加0.083小时等待时长 + 步行时长
-                    duration += 0.083
-                    logger.info(f"打车模式：添加0.083小时等待时长")
-                    
-                    # 计算步行路线时长并添加
-                    walking_duration = calculate_walking_time(start_location, end_location)
-                    if walking_duration > 0:
-                        duration += walking_duration
-                        logger.info(f"打车模式：添加{walking_duration:.3f}小时步行时长")
+                    # 打车：使用驾车算法（包括0.16小时停车）+ 0.083小时等待时长
+                    duration += 0.16  # 先添加驾车的停车时长
+                    duration += 0.083  # 再添加打车的等待时长
+                    logger.info(f"打车模式：添加0.16小时停车时长 + 0.083小时等待时长 = 0.243小时")
                 
                 # 获取路线详细信息
                 traffic_lights = best_path.get('traffic_lights', 0)  # 红绿灯数量
@@ -3775,7 +3771,14 @@ def calculate_route(start_store, end_store, transport_mode='driving', route_stra
             )
             
             # 根据交通方式估算时间（单程）
-            if transport_mode == 'bus':
+            if transport_mode == 'walking':
+                # 步行：使用高德步行路径规划API
+                duration = calculate_walking_time(start_location, end_location)
+                if duration <= 0:
+                    # 如果API失败，使用默认步行速度估算
+                    duration = distance / 5  # 平均步行速度5km/h
+                logger.info(f"步行模式：{distance:.3f}km, {duration*60:.1f}分钟")
+            elif transport_mode == 'bus':
                 duration = distance / 60  # 大巴平均60km/h
             elif transport_mode == 'train':
                 duration = distance / 200  # 高铁平均200km/h
