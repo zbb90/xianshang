@@ -3678,7 +3678,12 @@ def calculate_route(start_store, end_store, transport_mode='driving', route_stra
                     duration = distance / 5  # 平均步行速度5km/h
                 logger.info(f"步行模式：{distance:.3f}km, {duration*60:.1f}分钟")
             elif transport_mode == 'bus':
-                duration = distance / 60  # 大巴平均60km/h
+                # 大巴：基础行驶时间 + 等车时间 + 停靠时间
+                base_travel_time = distance / 50  # 大巴平均速度50km/h（考虑停靠）
+                waiting_time = 0.33  # 等车时间20分钟
+                stop_time = max(0.1, distance * 0.02)  # 停靠时间，长距离更多停靠
+                duration = base_travel_time + waiting_time + stop_time
+                logger.info(f"大巴模式：行驶{base_travel_time*60:.1f}分钟 + 等车{waiting_time*60:.1f}分钟 + 停靠{stop_time*60:.1f}分钟")
             elif transport_mode == 'train':
                 duration = distance / 200  # 高铁平均200km/h
             elif transport_mode == 'airplane':
