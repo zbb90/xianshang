@@ -4179,6 +4179,69 @@ ADMIN_DASHBOARD_TEMPLATE = '''
             color: #757575;
         }
         
+        /* 批量权限管理样式 */
+        .batch-actions {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #90caf9;
+        }
+        
+        .batch-info {
+            font-weight: 600;
+            color: #1976d2;
+            font-size: 14px;
+        }
+        
+        .batch-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .batch-buttons select {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .permission-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            text-align: center;
+            min-width: 60px;
+        }
+        
+        .permission-badge.admin {
+            background: #fce4ec;
+            color: #c2185b;
+            border: 1px solid #f8bbd9;
+        }
+        
+        .permission-badge.manager {
+            background: #fff3e0;
+            color: #f57c00;
+            border: 1px solid #ffcc02;
+        }
+        
+        .permission-badge.specialist {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #90caf9;
+        }
+        
+        #usersList tr.selected {
+            background-color: #f3e5f5 !important;
+        }
+        
         .logout-btn {
             position: absolute;
             top: 20px;
@@ -4359,6 +4422,9 @@ ADMIN_DASHBOARD_TEMPLATE = '''
                     <table class="table user-table">
                         <thead>
                             <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                </th>
                                 <th>ID</th>
                                 <th>用户名</th>
                                 <th>姓名</th>
@@ -4371,16 +4437,43 @@ ADMIN_DASHBOARD_TEMPLATE = '''
                         </thead>
                         <tbody id="usersList">
                             <tr>
-                                <td colspan="8" style="text-align: center; color: #666;">加载中...</td>
+                                <td colspan="9" style="text-align: center; color: #666;">加载中...</td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+                
+                <!-- 批量操作区域 -->
+                <div class="batch-actions" id="batchActions" style="display: none;">
+                    <div class="batch-info">
+                        已选择 <span id="selectedCount">0</span> 个用户
+                    </div>
+                    <div class="batch-buttons">
+                        <select id="batchRole">
+                            <option value="">选择角色</option>
+                            <option value="specialist">设为专员</option>
+                            <option value="manager">设为组长</option>
+                            <option value="admin">设为管理员</option>
+                        </select>
+                        <select id="batchDepartment">
+                            <option value="">选择部门</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="batchUpdatePermissions()">
+                            批量更新权限
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearSelection()">
+                            取消选择
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        // 批量权限管理变量
+        let selectedUsers = [];
+        
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
             setupTabs();
@@ -4548,17 +4641,24 @@ ADMIN_DASHBOARD_TEMPLATE = '''
                         }
                         
                         tbody.innerHTML = data.users.map(user => `
-                            <tr>
+                            <tr data-user-id="${user.id}">
+                                <td>
+                                    <input type="checkbox" 
+                                           ${user.username === 'admin' ? 'disabled' : ''} 
+                                           onchange="toggleUserSelection(${user.id}, this.checked)">
+                                </td>
                                 <td>${user.id}</td>
                                 <td>${user.username}</td>
                                 <td>${user.name}</td>
-                                <td><span class="role-badge role-${user.role}">${getRoleDisplayName(user.role)}</span></td>
+                                <td>
+                                    <span class="permission-badge ${user.role}">${getRoleDisplayName(user.role)}</span>
+                                </td>
                                 <td>${user.department || '未设置'}</td>
                                 <td>${user.phone || '未设置'}</td>
                                 <td>${formatDateTime(user.created_at)}</td>
                                 <td>
                                     <select onchange="updateUserRole(${user.id}, this.value)" ${user.username === 'admin' ? 'disabled' : ''}>
-                                                                                <option value="specialist" ${user.role === 'specialist' ? 'selected' : ''}>专员</option>
+                                        <option value="specialist" ${user.role === 'specialist' ? 'selected' : ''}>专员</option>
                                         <option value="manager" ${user.role === 'manager' ? 'selected' : ''}>组长</option>
                                         <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>管理员</option>
                                     </select>
@@ -4649,6 +4749,102 @@ ADMIN_DASHBOARD_TEMPLATE = '''
             .catch(error => {
                 console.error('删除用户失败:', error);
                 alert('删除失败，请重试');
+            });
+        }
+        
+        // 批量权限管理功能
+        function toggleUserSelection(userId, checked) {
+            if (checked) {
+                if (!selectedUsers.includes(userId)) {
+                    selectedUsers.push(userId);
+                }
+            } else {
+                selectedUsers = selectedUsers.filter(id => id !== userId);
+            }
+            updateSelectionUI();
+        }
+        
+        function toggleSelectAll() {
+            const checkAll = document.getElementById('selectAll').checked;
+            const userCheckboxes = document.querySelectorAll('#usersList input[type="checkbox"]:not(:disabled)');
+            
+            userCheckboxes.forEach(checkbox => {
+                checkbox.checked = checkAll;
+                const row = checkbox.closest('tr');
+                const userId = parseInt(row.dataset.userId);
+                if (userId) {
+                    if (checkAll && !selectedUsers.includes(userId)) {
+                        selectedUsers.push(userId);
+                    } else if (!checkAll) {
+                        selectedUsers = selectedUsers.filter(id => id !== userId);
+                    }
+                }
+            });
+            
+            updateSelectionUI();
+        }
+        
+        function updateSelectionUI() {
+            const count = selectedUsers.length;
+            document.getElementById('selectedCount').textContent = count;
+            const batchActions = document.getElementById('batchActions');
+            if (batchActions) {
+                batchActions.style.display = count > 0 ? 'flex' : 'none';
+            }
+        }
+        
+        function clearSelection() {
+            selectedUsers = [];
+            document.getElementById('selectAll').checked = false;
+            document.querySelectorAll('#usersList input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+            updateSelectionUI();
+        }
+        
+        function batchUpdatePermissions() {
+            const newRole = document.getElementById('batchRole').value;
+            const newDepartment = document.getElementById('batchDepartment').value;
+            
+            if (!newRole && !newDepartment) {
+                alert('请选择要更新的角色或部门');
+                return;
+            }
+            
+            if (selectedUsers.length === 0) {
+                alert('请选择要更新的用户');
+                return;
+            }
+            
+            const updates = selectedUsers.map(userId => ({
+                user_id: userId,
+                role: newRole || undefined,
+                department: newDepartment || undefined
+            }));
+            
+            if (!confirm(`确定要批量更新 ${selectedUsers.length} 个用户的权限吗？`)) {
+                return;
+            }
+            
+            fetch('/api/admin/batch_update_roles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ updates })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    clearSelection();
+                    loadUsers();
+                    loadOverviewData();
+                } else {
+                    alert('批量更新失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('批量更新失败:', error);
+                alert('批量更新失败');
             });
         }
         
@@ -5925,11 +6121,97 @@ def upgrade_user_roles():
         logger.error(f"升级用户角色失败: {e}")
         return jsonify({'success': False, 'message': f'升级失败: {str(e)}'}), 500
 
+# 批量权限管理API
+@app.route('/api/admin/batch_update_roles', methods=['POST'])
+def batch_update_roles():
+    """批量更新用户角色"""
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '只有管理员可以批量修改权限'}), 403
+    
+    try:
+        data = request.get_json()
+        updates = data.get('updates', [])
+        
+        if not updates:
+            return jsonify({'success': False, 'message': '没有要更新的数据'}), 400
+        
+        with get_db_connection() as db:
+            for update in updates:
+                user_id = update.get('user_id')
+                new_role = update.get('role')
+                new_department = update.get('department')
+                
+                if not user_id or not new_role:
+                    continue
+                
+                if new_role not in ['specialist', 'manager', 'admin']:
+                    continue
+                
+                # 防止修改admin用户
+                user = db.execute('SELECT username FROM users WHERE id = ?', (user_id,)).fetchone()
+                if user and user[0] == 'admin':
+                    continue
+                
+                # 更新用户信息
+                if new_department:
+                    db.execute('UPDATE users SET role = ?, department = ? WHERE id = ?', 
+                             (new_role, new_department, user_id))
+                else:
+                    db.execute('UPDATE users SET role = ? WHERE id = ?', (new_role, user_id))
+            
+            db.commit()
+            return jsonify({'success': True, 'message': f'批量更新{len(updates)}个用户权限成功'})
+            
+    except Exception as e:
+        logger.error(f"批量更新权限失败: {e}")
+        return jsonify({'success': False, 'message': f'批量更新失败: {str(e)}'}), 500
+
+@app.route('/api/admin/department_stats')
+def get_department_stats():
+    """获取部门统计信息用于权限管理"""
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '权限不足'}), 403
+    
+    try:
+        with get_db_connection() as db:
+            # 获取部门用户统计
+            query = '''
+            SELECT 
+                department,
+                COUNT(*) as total_users,
+                SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as admin_count,
+                SUM(CASE WHEN role = 'manager' THEN 1 ELSE 0 END) as manager_count,
+                SUM(CASE WHEN role = 'specialist' THEN 1 ELSE 0 END) as specialist_count
+            FROM users 
+            WHERE department IS NOT NULL AND department != ''
+            GROUP BY department
+            ORDER BY department
+            '''
+            dept_stats = db.execute(query).fetchall()
+            
+            # 获取所有部门列表
+            departments = db.execute('''
+            SELECT DISTINCT department 
+            FROM users 
+            WHERE department IS NOT NULL AND department != ''
+            ORDER BY department
+            ''').fetchall()
+            
+            return jsonify({
+                'success': True,
+                'department_stats': [dict(row) for row in dept_stats],
+                'departments': [row[0] for row in departments]
+            })
+            
+    except Exception as e:
+        logger.error(f"获取部门统计失败: {e}")
+        return jsonify({'success': False, 'message': f'获取数据失败: {str(e)}'}), 500
+
 # 临时数据清理端点（仅用于测试）
 @app.route('/api/admin/clear_test_data', methods=['POST'])
 def clear_test_data():
     '''清理所有工时记录测试数据'''
-    if 'user_id' not in session or session.get('role') not in ['admin', 'manager']:
+    if 'user_id' not in session or session.get('role') != 'admin':
         return jsonify({'success': False, 'message': '权限不足'}), 403
     
     try:
