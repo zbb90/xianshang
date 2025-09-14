@@ -5892,6 +5892,39 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
 
 
+# 用户角色升级端点
+@app.route('/api/admin/upgrade_roles', methods=['POST'])
+def upgrade_user_roles():
+    '''升级用户角色系统'''
+    if 'user_id' not in session or session.get('role') not in ['admin', 'manager']:
+        return jsonify({'success': False, 'message': '权限不足'}), 403
+    
+    try:
+        with get_db_connection() as db:
+            # 升级supervisor为admin
+            db.execute("UPDATE users SET role = 'admin' WHERE role = 'supervisor'")
+            
+            # 创建测试组长账号
+            existing_manager = db.execute("SELECT id FROM users WHERE role = 'manager'").fetchone()
+            if not existing_manager:
+                import bcrypt
+                password_hash = bcrypt.hashpw('123456'.encode('utf-8'), bcrypt.gensalt())
+                db.execute('''
+                    INSERT INTO users (username, password, name, role, department, phone)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', ('李组长', password_hash.decode('utf-8'), '李组长', 'manager', '稽核一组', '13900139001'))
+            
+            db.commit()
+            
+            return jsonify({
+                'success': True, 
+                'message': '用户角色升级完成！已创建测试组长账号：李组长/123456'
+            })
+            
+    except Exception as e:
+        logger.error(f"升级用户角色失败: {e}")
+        return jsonify({'success': False, 'message': f'升级失败: {str(e)}'}), 500
+
 # 临时数据清理端点（仅用于测试）
 @app.route('/api/admin/clear_test_data', methods=['POST'])
 def clear_test_data():
