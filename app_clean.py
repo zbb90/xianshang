@@ -4952,68 +4952,57 @@ def admin_delete_user():
         return jsonify({'success': False, 'message': '服务器错误'}), 500
 
 @app.route('/api/admin/records')
-def admin_records():
-    """管理者工时记录查询API"""
+@handle_errors
+def api_admin_records():
+    """管理者工时记录列表API"""
     if 'user_id' not in session or session.get('role') != 'supervisor':
         return jsonify({'success': False, 'message': '权限不足'}), 403
     
     try:
-        start_date = request.args.get('start_date', '')
-        end_date = request.args.get('end_date', '')
-        user_id = request.args.get('user_id', '')
-        department = request.args.get('department', '')
-        
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+        user_id_filter = request.args.get('user_id')
+        department_filter = request.args.get('department')
+
         with get_db_connection() as db:
-            query = '''
-                SELECT t.*, u.name as user_name, u.department as user_department 
-                FROM timesheet_records t 
-                JOIN users u ON t.user_id = u.id 
+            query = """
+                SELECT t.*, u.name as user_name, u.department as user_department
+                FROM timesheet_records t
+                JOIN users u ON t.user_id = u.id
                 WHERE 1=1
-            '''
+            """
             params = []
-            
-            if start_date:
-                query += ' AND t.work_date >= ?'
-                params.append(start_date)
-            
-            if end_date:
-                query += ' AND t.work_date <= ?'
-                params.append(end_date)
-                
-            if user_id:
-                query += ' AND t.user_id = ?'
-                params.append(user_id)
-                
-            if department:
-                query += ' AND u.department = ?'
-                params.append(department)
-            
-            query += ' ORDER BY t.work_date DESC, t.created_at DESC'
-            
-            records = db.execute(query, params).fetchall()
+
+            if start_date_str:
+                query += " AND t.work_date >= ?"
+                params.append(start_date_str)
+            if end_date_str:
+                query += " AND t.work_date <= ?"
+                params.append(end_date_str)
+            if user_id_filter:
+                query += " AND u.id = ?"
+                params.append(user_id_filter)
+            if department_filter:
+                query += " AND u.department = ?"
+                params.append(department_filter)
+
+            query += " ORDER BY t.work_date DESC, t.created_at DESC"
+
+            records = db.execute(query, tuple(params)).fetchall()
             
             records_list = []
             for record in records:
-                records_list.append({
-                    'id': record['id'],
-                    'user_name': record['user_name'],
-                    'user_department': record['user_department'],
-                    'work_date': record['work_date'],
-                    'start_location': record['start_location'],
-                    'end_location': record['end_location'],
-                    'round_trip_distance': record['round_trip_distance'],
-                    'total_work_hours': record['total_work_hours'],
-                    'created_at': record['created_at']
-                })
+                record_dict = dict(record)
+                # 确保user_name和user_department存在，如果查询结果没有，则给默认值
+                record_dict['user_name'] = record_dict.get('user_name', '未知')
+                record_dict['user_department'] = record_dict.get('user_department', '未设置')
+                records_list.append(record_dict)
             
-            return jsonify({
-                'success': True,
-                'records': records_list
-            })
+            return jsonify({'success': True, 'records': records_list})
             
     except Exception as e:
-        logger.error(f"查询工时记录失败: {e}")
-        return jsonify({'success': False, 'message': '服务器错误'}), 500
+        logger.error(f"加载管理者工时记录失败: {e}")
+        return jsonify({'success': False, 'message': '加载工时记录失败'}), 500
 
 @app.route('/api/admin/delete_record', methods=['POST'])
 def admin_delete_record():
