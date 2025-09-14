@@ -3783,6 +3783,43 @@ def health():
     """健康检查端点"""
     return {'status': 'ok', 'message': 'GuMing Timesheet System is running'}
 
+@app.route('/api/user_count')
+def api_user_count():
+    """获取用户统计信息（用于调试）"""
+    try:
+        with get_db_connection() as db:
+            # 获取总用户数
+            total_users = db.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+            
+            # 获取最近注册的用户
+            recent_users = db.execute('''
+                SELECT username, name, role, created_at 
+                FROM users 
+                ORDER BY created_at DESC 
+                LIMIT 10
+            ''').fetchall()
+            
+            users_list = []
+            for user in recent_users:
+                users_list.append({
+                    'username': user[0],
+                    'name': user[1], 
+                    'role': user[2],
+                    'created_at': user[3]
+                })
+            
+            return jsonify({
+                'success': True,
+                'total_users': total_users,
+                'recent_users': users_list
+            })
+    except Exception as e:
+        logger.error(f"获取用户统计失败: {e}")
+        return jsonify({
+            'success': False, 
+            'message': str(e)
+        })
+
 # 注册页面
 @app.route('/register', methods=['GET', 'POST'])
 def register():
