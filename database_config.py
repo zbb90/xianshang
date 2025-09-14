@@ -72,6 +72,7 @@ def init_postgresql():
                 name VARCHAR(255) NOT NULL,
                 role VARCHAR(50) NOT NULL DEFAULT 'specialist',
                 department VARCHAR(255),
+                phone VARCHAR(20) DEFAULT '',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -102,6 +103,40 @@ def init_postgresql():
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         ''')
+        
+        # 检查并添加新字段（兼容现有数据库）
+        try:
+            # 检查users表是否有phone字段
+            cursor.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='users' AND column_name='phone'
+            """)
+            if not cursor.fetchone():
+                cursor.execute('ALTER TABLE users ADD COLUMN phone VARCHAR(20) DEFAULT \'\'')
+                logger.info("PostgreSQL: 添加用户表phone字段")
+            
+            # 检查timesheet_records表是否有store_code和city字段
+            cursor.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='timesheet_records' AND column_name='store_code'
+            """)
+            if not cursor.fetchone():
+                cursor.execute('ALTER TABLE timesheet_records ADD COLUMN store_code VARCHAR(255)')
+                logger.info("PostgreSQL: 添加store_code字段")
+                
+            cursor.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='timesheet_records' AND column_name='city'
+            """)
+            if not cursor.fetchone():
+                cursor.execute('ALTER TABLE timesheet_records ADD COLUMN city VARCHAR(255)')
+                logger.info("PostgreSQL: 添加city字段")
+                
+        except Exception as e:
+            logger.error(f"PostgreSQL添加新字段时出错: {e}")
         
         conn.commit()
         logger.info("PostgreSQL数据库初始化完成")

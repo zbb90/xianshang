@@ -65,6 +65,7 @@ def create_postgres_tables(cursor):
             name VARCHAR(255) NOT NULL,
             role VARCHAR(50) NOT NULL DEFAULT 'specialist',
             department VARCHAR(255),
+            phone VARCHAR(20) DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -103,12 +104,15 @@ def migrate_users(sqlite_conn, pg_cursor):
     users = sqlite_conn.execute('SELECT * FROM users').fetchall()
     
     for user in users:
+        # 获取phone字段，如果不存在则使用空字符串
+        phone = user.get('phone', '') if 'phone' in user.keys() else ''
+        
         pg_cursor.execute('''
-            INSERT INTO users (username, password, name, role, department, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO users (username, password, name, role, department, phone, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (username) DO NOTHING
         ''', (user['username'], user['password'], user['name'], 
-              user['role'], user['department'], user['created_at']))
+              user['role'], user['department'], phone, user['created_at']))
     
     print(f"👥 迁移了 {len(users)} 个用户")
 

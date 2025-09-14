@@ -210,16 +210,16 @@ def init_db():
             try:
                 hashed_password = bcrypt.hashpw('123456'.encode('utf-8'), bcrypt.gensalt())
                 db.execute('''
-                    INSERT INTO users (username, password, name, role, department)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', ('zhaohong', hashed_password, '郑皓鸿', 'specialist', '稽核四组'))
+                    INSERT INTO users (username, password, name, role, department, phone)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', ('zhaohong', hashed_password, '郑皓鸿', 'specialist', '稽核四组', ''))
                 
                 # 创建管理员用户
                 admin_password = bcrypt.hashpw('admin123'.encode('utf-8'), bcrypt.gensalt())
                 db.execute('''
-                    INSERT INTO users (username, password, name, role)
-                    VALUES (?, ?, ?, ?)
-                ''', ('admin', admin_password, '管理员', 'supervisor'))
+                    INSERT INTO users (username, password, name, role, phone)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', ('admin', admin_password, '管理员', 'supervisor', ''))
                 
                 db.commit()
                 logger.info("默认用户创建成功")
@@ -1728,11 +1728,9 @@ USER_INPUT_TEMPLATE = '''
             setupStoreSearch();
             calculateValues();
             
-            {% if not edit_record %}
-            // 添加月度默认设置保存监听器（仅在新增模式下）
+            // 添加月度默认设置保存监听器（编辑和新增模式都启用）
             document.getElementById('businessTripDays').addEventListener('blur', saveMonthlyDefaults);
             document.getElementById('actualVisitDays').addEventListener('blur', saveMonthlyDefaults);
-            {% endif %}
             
             // 添加交通方式改变监听器
             document.getElementById('transportMode').addEventListener('change', handleTransportModeChange);
@@ -4421,13 +4419,14 @@ ADMIN_DASHBOARD_TEMPLATE = '''
                                 <th>姓名</th>
                                 <th>角色</th>
                                 <th>部门</th>
+                                <th>手机号</th>
                                 <th>注册时间</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
                         <tbody id="usersList">
                             <tr>
-                                <td colspan="7" style="text-align: center; color: #666;">加载中...</td>
+                                <td colspan="8" style="text-align: center; color: #666;">加载中...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -4600,6 +4599,7 @@ ADMIN_DASHBOARD_TEMPLATE = '''
                                 <td>${user.name}</td>
                                 <td><span class="role-badge role-${user.role}">${user.role === 'specialist' ? '专员' : '主管'}</span></td>
                                 <td>${user.department || '未设置'}</td>
+                                <td>${user.phone || '未设置'}</td>
                                 <td>${formatDateTime(user.created_at)}</td>
                                 <td>
                                     <select onchange="updateUserRole(${user.id}, this.value)" ${user.username === 'admin' ? 'disabled' : ''}>
@@ -4973,7 +4973,7 @@ def admin_users():
     try:
         with get_db_connection() as db:
             users = db.execute('''
-                SELECT id, username, name, role, department, created_at 
+                SELECT id, username, name, role, department, phone, created_at 
                 FROM users 
                 ORDER BY created_at DESC
             ''').fetchall()
@@ -4986,6 +4986,7 @@ def admin_users():
                     'name': user['name'],
                     'role': user['role'],
                     'department': user['department'],
+                    'phone': user['phone'],
                     'created_at': user['created_at']
                 })
             
