@@ -35,6 +35,18 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
+# Session配置 - 解决刷新页面退出登录的问题
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)  # Session有效期24小时
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # 防止XSS攻击
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF保护
+
+# 根据环境设置安全配置
+IS_PRODUCTION = os.environ.get('DATABASE_URL') is not None
+if IS_PRODUCTION:
+    app.config['SESSION_COOKIE_SECURE'] = True  # 生产环境启用HTTPS
+else:
+    app.config['SESSION_COOKIE_SECURE'] = False  # 本地开发环境
+
 # 数据库连接函数现在从database_config.py导入，支持PostgreSQL和SQLite自动切换
 
 # 带重试机制的HTTP请求
@@ -3802,6 +3814,7 @@ def login():
                 
                 if bcrypt.checkpw(password.encode('utf-8'), stored_password):
                     logger.info(f"用户 {username} 登录成功")
+                    session.permanent = True  # 设置持久Session，防止刷新退出
                     session['user_id'] = user[0]
                     session['username'] = user[1]
                     session['name'] = user[3]
