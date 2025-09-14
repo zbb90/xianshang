@@ -4653,7 +4653,25 @@ ADMIN_DASHBOARD_TEMPLATE = '''
                                 <td>
                                     <span class="permission-badge ${user.role}">${getRoleDisplayName(user.role)}</span>
                                 </td>
-                                <td>${user.department || '未设置'}</td>
+                                <td>
+                                    <select onchange="updateUserDepartment(${user.id}, this.value)" ${user.username === 'admin' ? 'disabled' : ''}>
+                                        <option value="">未设置</option>
+                                        <option value="稽核一组" ${user.department === '稽核一组' ? 'selected' : ''}>稽核一组</option>
+                                        <option value="稽核二组" ${user.department === '稽核二组' ? 'selected' : ''}>稽核二组</option>
+                                        <option value="稽核三组" ${user.department === '稽核三组' ? 'selected' : ''}>稽核三组</option>
+                                        <option value="稽核四组" ${user.department === '稽核四组' ? 'selected' : ''}>稽核四组</option>
+                                        <option value="稽核五组" ${user.department === '稽核五组' ? 'selected' : ''}>稽核五组</option>
+                                        <option value="稽核六组" ${user.department === '稽核六组' ? 'selected' : ''}>稽核六组</option>
+                                        <option value="稽核七组" ${user.department === '稽核七组' ? 'selected' : ''}>稽核七组</option>
+                                        <option value="稽核八组" ${user.department === '稽核八组' ? 'selected' : ''}>稽核八组</option>
+                                        <option value="稽核九组" ${user.department === '稽核九组' ? 'selected' : ''}>稽核九组</option>
+                                        <option value="稽核十组" ${user.department === '稽核十组' ? 'selected' : ''}>稽核十组</option>
+                                        <option value="管理组" ${user.department === '管理组' ? 'selected' : ''}>管理组</option>
+                                        <option value="培训组" ${user.department === '培训组' ? 'selected' : ''}>培训组</option>
+                                        <option value="业务组" ${user.department === '业务组' ? 'selected' : ''}>业务组</option>
+                                        <option value="技术组" ${user.department === '技术组' ? 'selected' : ''}>技术组</option>
+                                    </select>
+                                </td>
                                 <td>${user.phone || '未设置'}</td>
                                 <td>${formatDateTime(user.created_at)}</td>
                                 <td>
@@ -4749,6 +4767,41 @@ ADMIN_DASHBOARD_TEMPLATE = '''
             .catch(error => {
                 console.error('删除用户失败:', error);
                 alert('删除失败，请重试');
+            });
+        }
+        
+        // 更新用户部门
+        function updateUserDepartment(userId, newDepartment) {
+            if (!confirm('确定要修改此用户的部门吗？')) {
+                loadUsers(); // 重新加载以恢复原始值
+                return;
+            }
+
+            fetch('/api/admin/update_user_department', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    user_id: userId,
+                    department: newDepartment
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('部门更新成功！');
+                    loadUsers();
+                    loadOverviewData();
+                } else {
+                    alert('更新失败：' + data.message);
+                    loadUsers();
+                }
+            })
+            .catch(error => {
+                console.error('更新用户部门失败:', error);
+                alert('更新失败，请重试');
+                loadUsers();
             });
         }
         
@@ -6092,23 +6145,23 @@ if __name__ == '__main__':
 @app.route('/api/admin/upgrade_roles', methods=['POST'])
 def upgrade_user_roles():
     '''升级用户角色系统'''
-    if 'user_id' not in session or session.get('role') not in ['admin', 'manager']:
-        return jsonify({'success': False, 'message': '权限不足'}), 403
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '只有管理员可以升级角色'}), 403
     
     try:
         with get_db_connection() as db:
-            # 升级supervisor为admin
-            db.execute("UPDATE users SET role = 'admin' WHERE role = 'supervisor'")
+        # 升级所有supervisor和主管为admin
+        db.execute("UPDATE users SET role = 'admin' WHERE role = 'supervisor' OR role = '主管'")
             
-            # 创建测试组长账号
-            existing_manager = db.execute("SELECT id FROM users WHERE role = 'manager'").fetchone()
-            if not existing_manager:
-                import bcrypt
-                password_hash = bcrypt.hashpw('123456'.encode('utf-8'), bcrypt.gensalt())
-                db.execute('''
-                    INSERT INTO users (username, password, name, role, department, phone)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ''', ('李组长', password_hash.decode('utf-8'), '李组长', 'manager', '稽核一组', '13900139001'))
+        # 创建测试组长账号
+        existing_manager = db.execute("SELECT id FROM users WHERE role = 'manager'").fetchone()
+        if not existing_manager:
+            import bcrypt
+            password_hash = bcrypt.hashpw('123456'.encode('utf-8'), bcrypt.gensalt())
+            db.execute('''
+            INSERT OR IGNORE INTO users (username, password, name, role, department, phone)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ''', ('李组长', password_hash.decode('utf-8'), '李组长', 'manager', '稽核一组', '13900139001'))
             
             db.commit()
             
@@ -6120,6 +6173,54 @@ def upgrade_user_roles():
     except Exception as e:
         logger.error(f"升级用户角色失败: {e}")
         return jsonify({'success': False, 'message': f'升级失败: {str(e)}'}), 500
+
+# 部门管理API
+@app.route('/api/admin/departments')
+def get_departments():
+    """获取所有部门列表"""
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '权限不足'}), 403
+    
+    departments = [
+        '稽核一组', '稽核二组', '稽核三组', '稽核四组', '稽核五组',
+        '稽核六组', '稽核七组', '稽核八组', '稽核九组', '稽核十组',
+        '管理组', '培训组', '业务组', '技术组'
+    ]
+    
+    return jsonify({
+        'success': True,
+        'departments': departments
+    })
+
+@app.route('/api/admin/update_user_department', methods=['POST'])
+def update_user_department():
+    """更新用户部门"""
+    if 'user_id' not in session or session.get('role') != 'admin':
+        return jsonify({'success': False, 'message': '只有管理员可以修改用户部门'}), 403
+    
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        new_department = data.get('department')
+        
+        if not user_id:
+            return jsonify({'success': False, 'message': '用户ID不能为空'}), 400
+        
+        with get_db_connection() as db:
+            # 检查用户是否存在
+            user = db.execute('SELECT username FROM users WHERE id = ?', (user_id,)).fetchone()
+            if not user:
+                return jsonify({'success': False, 'message': '用户不存在'}), 404
+            
+            # 更新用户部门
+            db.execute('UPDATE users SET department = ? WHERE id = ?', (new_department, user_id))
+            db.commit()
+            
+            return jsonify({'success': True, 'message': '用户部门更新成功'})
+            
+    except Exception as e:
+        logger.error(f"更新用户部门失败: {e}")
+        return jsonify({'success': False, 'message': '服务器错误'}), 500
 
 # 批量权限管理API
 @app.route('/api/admin/batch_update_roles', methods=['POST'])
