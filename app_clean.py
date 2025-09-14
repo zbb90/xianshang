@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from contextlib import contextmanager
 from flask import Flask, request, jsonify, session, redirect, url_for, render_template_string, send_file
 import bcrypt
+from database_config import get_db_connection
 # 从环境变量或默认值获取配置
 AMAP_API_KEY = os.environ.get('AMAP_API_KEY', 'f2ed89b710d6a630881906c440f71691')
 AMAP_SECRET_KEY = os.environ.get('AMAP_SECRET_KEY', 'your_amap_secret_key_here')
@@ -34,28 +35,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 
-# 数据库连接上下文管理器
-@contextmanager
-def get_db_connection(timeout=30):
-    """数据库连接上下文管理器，确保连接正确关闭"""
-    conn = None
-    try:
-        conn = sqlite3.connect('timesheet.db', timeout=timeout)
-        conn.row_factory = sqlite3.Row
-        # 设置WAL模式提高并发性能
-        conn.execute('PRAGMA journal_mode=WAL')
-        conn.execute('PRAGMA synchronous=NORMAL')
-        conn.execute('PRAGMA cache_size=10000')
-        conn.execute('PRAGMA temp_store=memory')
-        yield conn
-    except sqlite3.Error as e:
-        logger.error(f"数据库错误: {e}")
-        if conn:
-            conn.rollback()
-        raise
-    finally:
-        if conn:
-            conn.close()
+# 数据库连接函数现在从database_config.py导入，支持PostgreSQL和SQLite自动切换
 
 # 带重试机制的HTTP请求
 def safe_request(url, params=None, timeout=15, max_retries=3):
@@ -121,111 +101,11 @@ def handle_errors(f):
 
 # 数据库初始化
 def init_db():
-    """初始化数据库"""
+    """初始化数据库 - 现在使用database_config.py统一管理"""
+    from database_config import init_database
     try:
-        with get_db_connection() as db:
-            # 创建用户表
-            db.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE NOT NULL,
-                    password TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    role TEXT NOT NULL DEFAULT 'specialist',
-                    department TEXT,
-                    phone TEXT DEFAULT '',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            # 创建工时记录表
-            db.execute('''
-                CREATE TABLE IF NOT EXISTS timesheet_records (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    work_date DATE NOT NULL,
-                    business_trip_days INTEGER DEFAULT 1,
-                    actual_visit_days INTEGER DEFAULT 1,
-                    audit_store_count INTEGER NOT NULL,
-                    training_store_count INTEGER DEFAULT 0,
-                    start_location TEXT,
-                    end_location TEXT,
-                    round_trip_distance REAL DEFAULT 0,
-                    transport_mode TEXT DEFAULT 'driving',
-                    schedule_number TEXT,
-                    travel_hours REAL DEFAULT 0,
-                    visit_hours REAL DEFAULT 0.92,
-                    report_hours REAL DEFAULT 0.13,
-                    total_work_hours REAL DEFAULT 0,
-                    notes TEXT,
-                    store_code TEXT,
-                    city TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users (id)
-                )
-            ''')
-            
-            # 创建用户月度默认设置表
-            db.execute('''
-                CREATE TABLE IF NOT EXISTS user_monthly_defaults (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    year INTEGER NOT NULL,
-                    month INTEGER NOT NULL,
-                    business_trip_days INTEGER DEFAULT 1,
-                    actual_visit_days INTEGER DEFAULT 1,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users (id),
-                    UNIQUE(user_id, year, month)
-                )
-            ''')
-            
-            # 检查并添加新字段（兼容现有数据库）
-            try:
-                # 检查用户表字段
-                cursor = db.execute("PRAGMA table_info(users)")
-                user_columns = [column[1] for column in cursor.fetchall()]
-                
-                if 'phone' not in user_columns:
-                    db.execute('ALTER TABLE users ADD COLUMN phone TEXT DEFAULT ""')
-                    logger.info("添加用户表phone字段")
-                
-                # 检查工时记录表字段
-                cursor = db.execute("PRAGMA table_info(timesheet_records)")
-                columns = [column[1] for column in cursor.fetchall()]
-                
-                if 'store_code' not in columns:
-                    db.execute('ALTER TABLE timesheet_records ADD COLUMN store_code TEXT')
-                    logger.info("添加store_code字段")
-                
-                if 'city' not in columns:
-                    db.execute('ALTER TABLE timesheet_records ADD COLUMN city TEXT')
-                    logger.info("添加city字段")
-            
-            except Exception as e:
-                logger.error(f"添加新字段时出错: {e}")
-            
-            # 创建默认用户
-            try:
-                hashed_password = bcrypt.hashpw('123456'.encode('utf-8'), bcrypt.gensalt())
-                db.execute('''
-                    INSERT INTO users (username, password, name, role, department, phone)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ''', ('zhaohong', hashed_password, '郑皓鸿', 'specialist', '稽核四组', ''))
-                
-                # 创建管理员用户
-                admin_password = bcrypt.hashpw('admin123'.encode('utf-8'), bcrypt.gensalt())
-                db.execute('''
-                    INSERT INTO users (username, password, name, role, phone)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', ('admin', admin_password, '管理员', 'supervisor', ''))
-                
-                db.commit()
-                logger.info("默认用户创建成功")
-            except sqlite3.IntegrityError:
-                logger.info("默认用户创建失败（可能已存在）: UNIQUE constraint failed: users.username")
-                
+        init_database()
+        logger.info("数据库初始化成功")
     except Exception as e:
         logger.error(f"数据库初始化失败: {e}")
         raise
@@ -3908,11 +3788,10 @@ def login():
             return render_template_string(LOGIN_TEMPLATE, error='用户名和密码不能为空')
         
         try:
-            db = sqlite3.connect('timesheet.db')
-            user = db.execute(
-                'SELECT * FROM users WHERE username = ?', (username,)
-            ).fetchone()
-            db.close()
+            with get_db_connection() as db:
+                user = db.execute(
+                    'SELECT * FROM users WHERE username = ?', (username,)
+                ).fetchone()
             
             if user:
                 logger.info(f"找到用户: {user[1]}, 角色: {user[4]}")
@@ -5551,16 +5430,12 @@ def api_get_my_timesheet():
         return jsonify({'success': False, 'message': '未登录'})
     
     try:
-        db = sqlite3.connect('timesheet.db')
-        db.row_factory = sqlite3.Row
-        
-        records = db.execute('''
-            SELECT * FROM timesheet_records 
-            WHERE user_id = ? 
-            ORDER BY work_date ASC, created_at ASC
-        ''', (session['user_id'],)).fetchall()
-        
-        db.close()
+        with get_db_connection() as db:
+            records = db.execute('''
+                SELECT * FROM timesheet_records 
+                WHERE user_id = ? 
+                ORDER BY work_date ASC, created_at ASC
+            ''', (session['user_id'],)).fetchall()
         
         records_list = []
         for record in records:
@@ -5617,38 +5492,37 @@ def api_create_timesheet():
         report_hours = safe_float(data.get('reportHours', 0))
         total_work_hours = travel_hours + visit_hours + report_hours
         
-        db = sqlite3.connect('timesheet.db')
-        db.execute('''
-            INSERT INTO timesheet_records (
-                user_id, work_date, business_trip_days, actual_visit_days,
-                audit_store_count, training_store_count, start_location, end_location,
-                round_trip_distance, transport_mode, schedule_number,
-                travel_hours, visit_hours, report_hours, total_work_hours,
-                notes, store_code, city
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            session['user_id'],
-            data.get('workDate'),
-            safe_int(data.get('businessTripDays', 1), 1),
-            safe_int(data.get('actualVisitDays', 1), 1),
-            1,  # audit_store_count 默认设为1
-            0,  # training_store_count 设为0
-            data.get('startStore', ''),
-            data.get('endStore', ''),
-            safe_float(data.get('roundTripDistance', 0)),
-            data.get('transportMode', 'driving'),
-            data.get('scheduleNumber', ''),
-            travel_hours,
-            visit_hours,
-            report_hours,
-            total_work_hours,
-            data.get('notes', ''),
-            data.get('storeCode', ''),
-            data.get('city', '')
-        ))
-        
-        db.commit()
-        db.close()
+        with get_db_connection() as db:
+            db.execute('''
+                INSERT INTO timesheet_records (
+                    user_id, work_date, business_trip_days, actual_visit_days,
+                    audit_store_count, training_store_count, start_location, end_location,
+                    round_trip_distance, transport_mode, schedule_number,
+                    travel_hours, visit_hours, report_hours, total_work_hours,
+                    notes, store_code, city
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                session['user_id'],
+                data.get('workDate'),
+                safe_int(data.get('businessTripDays', 1), 1),
+                safe_int(data.get('actualVisitDays', 1), 1),
+                1,  # audit_store_count 默认设为1
+                0,  # training_store_count 设为0
+                data.get('startStore', ''),
+                data.get('endStore', ''),
+                safe_float(data.get('roundTripDistance', 0)),
+                data.get('transportMode', 'driving'),
+                data.get('scheduleNumber', ''),
+                travel_hours,
+                visit_hours,
+                report_hours,
+                total_work_hours,
+                data.get('notes', ''),
+                data.get('storeCode', ''),
+                data.get('city', '')
+            ))
+            
+            db.commit()
         
         return jsonify({'success': True, 'message': '工时记录保存成功'})
     except Exception as e:
@@ -5770,14 +5644,12 @@ def api_export_timesheet():
         writer.writerow(headers)
         
         # 获取用户记录（按日期升序排序，5号在最上方）
-        db = sqlite3.connect('timesheet.db')
-        db.row_factory = sqlite3.Row
-        records = db.execute('''
-            SELECT * FROM timesheet_records 
-            WHERE user_id = ? 
-            ORDER BY work_date ASC, created_at ASC
-        ''', (session['user_id'],)).fetchall()
-        db.close()
+        with get_db_connection() as db:
+            records = db.execute('''
+                SELECT * FROM timesheet_records 
+                WHERE user_id = ? 
+                ORDER BY work_date ASC, created_at ASC
+            ''', (session['user_id'],)).fetchall()
         
         # 写入数据
         for record in records:
@@ -5831,23 +5703,21 @@ def api_delete_timesheet(record_id):
         return jsonify({'success': False, 'message': '未登录'})
     
     try:
-        db = sqlite3.connect('timesheet.db')
-        
-        # 检查记录是否属于当前用户
-        record = db.execute(
-            'SELECT user_id FROM timesheet_records WHERE id = ?',
-            (record_id,)
-        ).fetchone()
-        
-        if not record:
-            return jsonify({'success': False, 'message': '记录不存在'})
-        
-        if record[0] != session['user_id']:
-            return jsonify({'success': False, 'message': '无权限删除此记录'})
-        
-        db.execute('DELETE FROM timesheet_records WHERE id = ?', (record_id,))
-        db.commit()
-        db.close()
+        with get_db_connection() as db:
+            # 检查记录是否属于当前用户
+            record = db.execute(
+                'SELECT user_id FROM timesheet_records WHERE id = ?',
+                (record_id,)
+            ).fetchone()
+            
+            if not record:
+                return jsonify({'success': False, 'message': '记录不存在'})
+            
+            if record[0] != session['user_id']:
+                return jsonify({'success': False, 'message': '无权限删除此记录'})
+            
+            db.execute('DELETE FROM timesheet_records WHERE id = ?', (record_id,))
+            db.commit()
         
         return jsonify({'success': True, 'message': '记录删除成功'})
     except Exception as e:
