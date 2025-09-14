@@ -998,6 +998,9 @@ USER_INPUT_TEMPLATE = '''
     </div>
 
     <script>
+        // 检查是否为编辑模式
+        const isEditMode = window.editRecordId !== undefined;
+        
         // 表单提交
         document.getElementById('timesheetForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -1022,8 +1025,17 @@ USER_INPUT_TEMPLATE = '''
             }
             
             try {
-                const response = await fetch('/api/my_timesheet', {
-                    method: 'POST',
+                let url = '/api/my_timesheet';
+                let method = 'POST';
+                
+                // 编辑模式使用PUT方法和记录ID
+                if (isEditMode) {
+                    url = `/api/my_timesheet/${window.editRecordId}`;
+                    method = 'PUT';
+                }
+                
+                const response = await fetch(url, {
+                    method: method,
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -1033,14 +1045,19 @@ USER_INPUT_TEMPLATE = '''
                 const result = await response.json();
                 
                 if (result.success) {
-                    alert('工时记录保存成功！');
-                    e.target.reset();
-                    document.getElementById('workDate').value = new Date().toISOString().split('T')[0];
-                    document.getElementById('startStore').value = '古茗';
-                    document.getElementById('endStore').value = '古茗';
-                    document.getElementById('visitHours').value = '0.92';
-                    document.getElementById('reportHours').value = '0.13';
-                    calculateValues();
+                    if (isEditMode) {
+                        alert('工时记录更新成功！');
+                        window.location.href = '/user/records';  // 返回记录列表
+                    } else {
+                        alert('工时记录保存成功！');
+                        e.target.reset();
+                        document.getElementById('workDate').value = new Date().toISOString().split('T')[0];
+                        document.getElementById('startStore').value = '古茗';
+                        document.getElementById('endStore').value = '古茗';
+                        document.getElementById('visitHours').value = '0.92';
+                        document.getElementById('reportHours').value = '0.13';
+                        calculateValues();
+                    }
                 } else {
                     alert('保存失败：' + result.message);
                 }
@@ -1666,19 +1683,56 @@ USER_INPUT_TEMPLATE = '''
             }
         }
 
+        // 编辑数据填充
+        {% if edit_record %}
+        window.editRecordId = {{ edit_record.id }};
+        function fillEditData() {
+            document.getElementById('workDate').value = '{{ edit_record.work_date }}';
+            document.getElementById('businessTripDays').value = {{ edit_record.business_trip_days }};
+            document.getElementById('actualVisitDays').value = {{ edit_record.actual_visit_days }};
+            document.getElementById('storeCode').value = '{{ edit_record.store_code }}';
+            document.getElementById('startStore').value = '{{ edit_record.start_location }}';
+            document.getElementById('endStore').value = '{{ edit_record.end_location }}';
+            document.getElementById('transportMode').value = '{{ edit_record.transport_mode }}';
+            document.getElementById('roundTripDistance').value = {{ edit_record.round_trip_distance or 0 }};
+            document.getElementById('travelHours').value = {{ edit_record.travel_hours }};
+            document.getElementById('visitHours').value = {{ edit_record.visit_hours }};
+            document.getElementById('reportHours').value = {{ edit_record.report_hours }};
+            document.getElementById('totalWorkHours').value = {{ edit_record.total_work_hours }};
+            
+            // 修改页面标题
+            const title = document.querySelector('h2');
+            if (title) {
+                title.textContent = '修改工时记录';
+            }
+            
+            // 修改保存按钮文字
+            const submitBtn = document.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.textContent = '更新记录';
+            }
+        }
+        {% endif %}
+
         // 页面初始化
         document.addEventListener('DOMContentLoaded', function() {
+            {% if edit_record %}
+            fillEditData();
+            {% else %}
             document.getElementById('workDate').value = new Date().toISOString().split('T')[0];
+            // 加载月度默认设置
+            loadMonthlyDefaults();
+            {% endif %}
+            
             setupCalculations();
             setupStoreSearch();
             calculateValues();
             
-            // 加载月度默认设置
-            loadMonthlyDefaults();
-            
-            // 添加月度默认设置保存监听器
+            {% if not edit_record %}
+            // 添加月度默认设置保存监听器（仅在新增模式下）
             document.getElementById('businessTripDays').addEventListener('blur', saveMonthlyDefaults);
             document.getElementById('actualVisitDays').addEventListener('blur', saveMonthlyDefaults);
+            {% endif %}
             
             // 添加交通方式改变监听器
             document.getElementById('transportMode').addEventListener('change', handleTransportModeChange);
@@ -5162,7 +5216,43 @@ def user_dashboard():
         'department': session.get('department')
     }
     
-    return render_template_string(USER_INPUT_TEMPLATE, user=user)
+    # 检查是否是编辑模式
+    edit_id = request.args.get('edit')
+    edit_record = None
+    
+    if edit_id:
+        try:
+            with get_db_connection() as db:
+                # 获取要编辑的记录，确保是当前用户的记录
+                record = db.execute('''
+                    SELECT * FROM timesheet_records 
+                    WHERE id = ? AND user_id = ?
+                ''', (edit_id, session['user_id'])).fetchone()
+                
+                if record:
+                    edit_record = {
+                        'id': record[0],
+                        'work_date': record[2],
+                        'business_trip_days': record[3],
+                        'actual_visit_days': record[4],
+                        'audit_store_count': record[5],
+                        'start_location': record[7],
+                        'end_location': record[8],
+                        'round_trip_distance': record[9],
+                        'transport_mode': record[10],
+                        'schedule_number': record[11],
+                        'travel_hours': record[12],
+                        'visit_hours': record[13],
+                        'report_hours': record[14],
+                        'total_work_hours': record[15],
+                        'notes': record[16] or '',
+                        'store_code': record[17] or '',
+                        'city': record[18] or ''
+                    }
+        except Exception as e:
+            logger.error(f"获取编辑记录失败: {e}")
+    
+    return render_template_string(USER_INPUT_TEMPLATE, user=user, edit_record=edit_record)
 
 @app.route('/user/records')
 def user_records():
@@ -5520,6 +5610,94 @@ def api_create_timesheet():
         return jsonify({'success': True, 'message': '工时记录保存成功'})
     except Exception as e:
         print(f"创建工时记录失败: {e}")
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/api/my_timesheet/<int:record_id>', methods=['PUT'])
+def api_update_timesheet(record_id):
+    """更新工时记录"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': '未登录'})
+    
+    try:
+        data = request.get_json()
+        
+        # 安全转换数值，处理空字符串
+        def safe_float(value, default=0):
+            if value is None or value == '' or value == 'undefined':
+                return default
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return default
+        
+        def safe_int(value, default=0):
+            if value is None or value == '' or value == 'undefined':
+                return default
+            try:
+                return int(value)
+            except (ValueError, TypeError):
+                return default
+        
+        # 获取和验证数据
+        travel_hours = safe_float(data.get('travelHours', 0))
+        visit_hours = safe_float(data.get('visitHours', 0.92))
+        report_hours = safe_float(data.get('reportHours', 0.13))
+        total_work_hours = travel_hours + visit_hours + report_hours
+        
+        with get_db_connection() as db:
+            # 检查记录是否存在且属于当前用户
+            existing_record = db.execute('''
+                SELECT user_id FROM timesheet_records 
+                WHERE id = ? AND user_id = ?
+            ''', (record_id, session['user_id'])).fetchone()
+            
+            if not existing_record:
+                return jsonify({'success': False, 'message': '记录不存在或无权限修改'})
+            
+            # 更新记录
+            db.execute('''
+                UPDATE timesheet_records SET
+                    work_date = ?,
+                    business_trip_days = ?,
+                    actual_visit_days = ?,
+                    start_location = ?,
+                    end_location = ?,
+                    round_trip_distance = ?,
+                    transport_mode = ?,
+                    schedule_number = ?,
+                    travel_hours = ?,
+                    visit_hours = ?,
+                    report_hours = ?,
+                    total_work_hours = ?,
+                    notes = ?,
+                    store_code = ?,
+                    city = ?
+                WHERE id = ? AND user_id = ?
+            ''', (
+                data.get('workDate'),
+                safe_int(data.get('businessTripDays', 1), 1),
+                safe_int(data.get('actualVisitDays', 1), 1),
+                data.get('startStore', ''),
+                data.get('endStore', ''),
+                safe_float(data.get('roundTripDistance', 0)),
+                data.get('transportMode', 'driving'),
+                data.get('scheduleNumber', ''),
+                travel_hours,
+                visit_hours,
+                report_hours,
+                total_work_hours,
+                data.get('notes', ''),
+                data.get('storeCode', ''),
+                data.get('city', ''),
+                record_id,
+                session['user_id']
+            ))
+            
+            db.commit()
+        
+        return jsonify({'success': True, 'message': '工时记录更新成功'})
+    except Exception as e:
+        print(f"更新工时记录失败: {e}")
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/api/export_timesheet')
