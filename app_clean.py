@@ -47,6 +47,54 @@ if IS_PRODUCTION:
 else:
     app.config['SESSION_COOKIE_SECURE'] = False  # 本地开发环境
 
+
+# 权限检查函数
+def check_permission(required_role):
+    """检查用户权限"""
+    if 'user_id' not in session:
+        return False, '未登录'
+    
+    user_role = session.get('role')
+    user_department = session.get('department')
+    
+    # 角色权限等级 (数字越大权限越高)
+    role_levels = {
+        'specialist': 1,
+        'manager': 2, 
+        'admin': 3
+    }
+    
+    current_level = role_levels.get(user_role, 0)
+    required_level = role_levels.get(required_role, 999)
+    
+    return current_level >= required_level, '权限不足'
+
+def can_view_department_data(target_department=None):
+    """检查是否可以查看指定部门数据"""
+    user_role = session.get('role')
+    user_department = session.get('department')
+    
+    if user_role == 'admin':
+        return True  # 管理员可查看所有部门
+    elif user_role == 'manager':
+        # 组长只能查看自己部门的数据
+        return target_department is None or target_department == user_department
+    else:
+        return False  # 专员不能查看部门数据
+
+def get_department_filter():
+    """获取当前用户的部门过滤条件"""
+    user_role = session.get('role')
+    user_department = session.get('department')
+    
+    if user_role == 'admin':
+        return None  # 无过滤条件
+    elif user_role == 'manager':
+        return user_department  # 只看自己部门
+    else:
+        return None  # 专员不需要部门过滤
+
+
 # 数据库连接函数现在从database_config.py导入，支持PostgreSQL和SQLite自动切换
 
 # 带重试机制的HTTP请求
@@ -3667,7 +3715,7 @@ def index():
     """主页，重定向到登录页"""
     if 'user_id' in session:
         user_role = session.get('role')
-        if user_role == 'supervisor':
+        if user_role in ['admin', 'manager']:
             return redirect(url_for('admin_dashboard'))
         else:
             return redirect(url_for('user_dashboard'))
@@ -4088,9 +4136,14 @@ ADMIN_DASHBOARD_TEMPLATE = '''
             color: #1976d2;
         }
         
-        .role-supervisor {
+        .role-manager {
             background: #fff3e0;
             color: #f57c00;
+        }
+        
+        .role-admin {
+            background: #fce4ec;
+            color: #c2185b;
         }
         
         .efficiency-badge {
@@ -4484,19 +4537,30 @@ ADMIN_DASHBOARD_TEMPLATE = '''
                         const select = document.getElementById('userFilter');
                         
                         // 更新用户列表
+                        // 角色显示名称映射
+                        function getRoleDisplayName(role) {
+                            const roleMap = {
+                                'specialist': '专员',
+                                'manager': '组长', 
+                                'admin': '管理员'
+                            };
+                            return roleMap[role] || role;
+                        }
+                        
                         tbody.innerHTML = data.users.map(user => `
                             <tr>
                                 <td>${user.id}</td>
                                 <td>${user.username}</td>
                                 <td>${user.name}</td>
-                                <td><span class="role-badge role-${user.role}">${user.role === 'specialist' ? '专员' : '主管'}</span></td>
+                                <td><span class="role-badge role-${user.role}">${getRoleDisplayName(user.role)}</span></td>
                                 <td>${user.department || '未设置'}</td>
                                 <td>${user.phone || '未设置'}</td>
                                 <td>${formatDateTime(user.created_at)}</td>
                                 <td>
                                     <select onchange="updateUserRole(${user.id}, this.value)" ${user.username === 'admin' ? 'disabled' : ''}>
-                                        <option value="specialist" ${user.role === 'specialist' ? 'selected' : ''}>专员</option>
-                                        <option value="supervisor" ${user.role === 'supervisor' ? 'selected' : ''}>主管</option>
+                                                                                <option value="specialist" ${user.role === 'specialist' ? 'selected' : ''}>专员</option>
+                                        <option value="manager" ${user.role === 'manager' ? 'selected' : ''}>组长</option>
+                                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>管理员</option>
                                     </select>
                                     ${user.username !== 'admin' ? `<button class="btn btn-danger" onclick="deleteUser(${user.id})" style="margin-left: 10px;">删除</button>` : ''}
                                 </td>
@@ -4740,7 +4804,7 @@ ADMIN_DASHBOARD_TEMPLATE = '''
 @app.route('/admin')
 def admin_dashboard():
     """管理者仪表板"""
-    if 'user_id' not in session or session.get('role') != 'supervisor':
+    if 'user_id' not in session or session.get('role') not in ['admin', 'manager']:
         return redirect(url_for('login'))
     
     user = {
@@ -4754,7 +4818,7 @@ def admin_dashboard():
 @app.route('/api/admin/overview')
 def admin_overview():
     """管理者概览统计API"""
-    if 'user_id' not in session or session.get('role') != 'supervisor':
+    if 'user_id' not in session or session.get('role') not in ['admin', 'manager']:
         return jsonify({'success': False, 'message': '权限不足'}), 403
     
     try:
@@ -4859,7 +4923,7 @@ def admin_overview():
 @app.route('/api/admin/users')
 def admin_users():
     """管理者用户列表API"""
-    if 'user_id' not in session or session.get('role') != 'supervisor':
+    if 'user_id' not in session or session.get('role') not in ['admin', 'manager']:
         return jsonify({'success': False, 'message': '权限不足'}), 403
     
     try:
@@ -4894,7 +4958,7 @@ def admin_users():
 @app.route('/api/admin/update_user_role', methods=['POST'])
 def admin_update_user_role():
     """更新用户角色API"""
-    if 'user_id' not in session or session.get('role') != 'supervisor':
+    if 'user_id' not in session or session.get('role') not in ['admin', 'manager']:
         return jsonify({'success': False, 'message': '权限不足'}), 403
     
     try:
@@ -4905,7 +4969,7 @@ def admin_update_user_role():
         if not user_id or not new_role:
             return jsonify({'success': False, 'message': '参数不完整'}), 400
         
-        if new_role not in ['specialist', 'supervisor']:
+        if new_role not in ['specialist', 'manager', 'admin']:
             return jsonify({'success': False, 'message': '无效的角色类型'}), 400
         
         with get_db_connection() as db:
@@ -4931,7 +4995,7 @@ def admin_update_user_role():
 @app.route('/api/admin/delete_user', methods=['POST'])
 def admin_delete_user():
     """删除用户API"""
-    if 'user_id' not in session or session.get('role') != 'supervisor':
+    if 'user_id' not in session or session.get('role') not in ['admin', 'manager']:
         return jsonify({'success': False, 'message': '权限不足'}), 403
     
     try:
@@ -4968,7 +5032,7 @@ def admin_delete_user():
 @handle_errors
 def api_admin_records():
     """管理者工时记录列表API"""
-    if 'user_id' not in session or session.get('role') != 'supervisor':
+    if 'user_id' not in session or session.get('role') not in ['admin', 'manager']:
         return jsonify({'success': False, 'message': '权限不足'}), 403
     
     try:
@@ -4998,6 +5062,12 @@ def api_admin_records():
             if department_filter:
                 query += " AND u.department = ?"
                 params.append(department_filter)
+            
+            # 添加基于角色的部门过滤
+            current_department_filter = get_department_filter()
+            if current_department_filter:
+                query += " AND u.department = ?"
+                params.append(current_department_filter)
 
             query += " ORDER BY t.work_date DESC, t.created_at DESC"
 
@@ -5020,7 +5090,7 @@ def api_admin_records():
 @app.route('/api/admin/delete_record', methods=['POST'])
 def admin_delete_record():
     """删除工时记录API"""
-    if 'user_id' not in session or session.get('role') != 'supervisor':
+    if 'user_id' not in session or session.get('role') not in ['admin', 'manager']:
         return jsonify({'success': False, 'message': '权限不足'}), 403
     
     try:
@@ -5049,7 +5119,7 @@ def admin_delete_record():
 @app.route('/api/admin/export_records')
 def admin_export_records():
     """导出工时记录为Excel"""
-    if 'user_id' not in session or session.get('role') != 'supervisor':
+    if 'user_id' not in session or session.get('role') not in ['admin', 'manager']:
         return jsonify({'success': False, 'message': '权限不足'}), 403
     
     try:
@@ -5826,7 +5896,7 @@ if __name__ == '__main__':
 @app.route('/api/admin/clear_test_data', methods=['POST'])
 def clear_test_data():
     '''清理所有工时记录测试数据'''
-    if 'user_id' not in session or session.get('role') != 'supervisor':
+    if 'user_id' not in session or session.get('role') not in ['admin', 'manager']:
         return jsonify({'success': False, 'message': '权限不足'}), 403
     
     try:
