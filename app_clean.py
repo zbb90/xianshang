@@ -5807,3 +5807,29 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8081))
     debug_mode = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
+
+
+# 临时数据清理端点（仅用于测试）
+@app.route('/api/admin/clear_test_data', methods=['POST'])
+def clear_test_data():
+    '''清理所有工时记录测试数据'''
+    if 'user_id' not in session or session.get('role') != 'supervisor':
+        return jsonify({'success': False, 'message': '权限不足'}), 403
+    
+    try:
+        with get_db_connection() as db:
+            # 删除所有工时记录
+            db.execute('DELETE FROM timesheet_records')
+            # 删除月度默认设置
+            db.execute('DELETE FROM user_monthly_defaults WHERE user_id != 2')  # 保留admin的设置
+            db.commit()
+            
+            return jsonify({
+                'success': True, 
+                'message': '测试数据清理完成，可以重新创建工时记录进行测试'
+            })
+            
+    except Exception as e:
+        logger.error(f"清理测试数据失败: {e}")
+        return jsonify({'success': False, 'message': f'清理失败: {str(e)}'}), 500
+
