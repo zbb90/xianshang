@@ -363,12 +363,7 @@ register_template = r'''
                     <option value="稽核四组">稽核四组</option>
                     <option value="稽核五组">稽核五组</option>
                     <option value="稽核六组">稽核六组</option>
-                    <option value="稽核七组">稽核七组</option>
-                    <option value="稽核八组">稽核八组</option>
-                    <option value="稽核九组">稽核九组</option>
-                    <option value="稽核十组">稽核十组</option>
                     <option value="管理组">管理组</option>
-                    <option value="培训组">培训组</option>
                 </select>
             </div>
 
@@ -4662,14 +4657,7 @@ ADMIN_DASHBOARD_TEMPLATE = '''
                                         <option value="稽核四组" ${user.department === '稽核四组' ? 'selected' : ''}>稽核四组</option>
                                         <option value="稽核五组" ${user.department === '稽核五组' ? 'selected' : ''}>稽核五组</option>
                                         <option value="稽核六组" ${user.department === '稽核六组' ? 'selected' : ''}>稽核六组</option>
-                                        <option value="稽核七组" ${user.department === '稽核七组' ? 'selected' : ''}>稽核七组</option>
-                                        <option value="稽核八组" ${user.department === '稽核八组' ? 'selected' : ''}>稽核八组</option>
-                                        <option value="稽核九组" ${user.department === '稽核九组' ? 'selected' : ''}>稽核九组</option>
-                                        <option value="稽核十组" ${user.department === '稽核十组' ? 'selected' : ''}>稽核十组</option>
                                         <option value="管理组" ${user.department === '管理组' ? 'selected' : ''}>管理组</option>
-                                        <option value="培训组" ${user.department === '培训组' ? 'selected' : ''}>培训组</option>
-                                        <option value="业务组" ${user.department === '业务组' ? 'selected' : ''}>业务组</option>
-                                        <option value="技术组" ${user.department === '技术组' ? 'selected' : ''}>技术组</option>
                                     </select>
                                 </td>
                                 <td>${user.phone || '未设置'}</td>
@@ -6182,9 +6170,8 @@ def get_departments():
         return jsonify({'success': False, 'message': '权限不足'}), 403
     
     departments = [
-        '稽核一组', '稽核二组', '稽核三组', '稽核四组', '稽核五组',
-        '稽核六组', '稽核七组', '稽核八组', '稽核九组', '稽核十组',
-        '管理组', '培训组', '业务组', '技术组'
+        '稽核一组', '稽核二组', '稽核三组', '稽核四组', '稽核五组', '稽核六组',
+        '管理组'
     ]
     
     return jsonify({
