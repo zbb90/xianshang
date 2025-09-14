@@ -6150,10 +6150,10 @@ def upgrade_user_roles():
     
     try:
         with get_db_connection() as db:
-        # 升级所有supervisor和主管为admin
-        db.execute("UPDATE users SET role = 'admin' WHERE role = 'supervisor' OR role = '主管'")
+            # 升级所有supervisor和主管为admin
+            db.execute("UPDATE users SET role = 'admin' WHERE role = 'supervisor' OR role = '主管'")
             
-        # 创建测试组长账号
+            # 创建测试组长账号
         existing_manager = db.execute("SELECT id FROM users WHERE role = 'manager'").fetchone()
         if not existing_manager:
             import bcrypt
