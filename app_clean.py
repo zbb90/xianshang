@@ -3718,8 +3718,15 @@ def index():
 
 @app.route('/health')
 def health():
-    """健康检查端点"""
-    return {'status': 'ok', 'message': 'GuMing Timesheet System is running'}
+    """健康检查端点（Railway要求）"""
+    try:
+        # 测试数据库连接
+        with get_db_connection() as db:
+            db.execute('SELECT 1').fetchone()
+        return jsonify({'status': 'healthy', 'database': 'connected', 'message': 'GuMing Timesheet System is running'}), 200
+    except Exception as e:
+        logger.error(f"健康检查失败: {e}")
+        return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
 
 @app.route('/api/user_count')
 def api_user_count():
