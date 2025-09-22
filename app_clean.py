@@ -6130,7 +6130,19 @@ def api_tencent_usage_stats():
     })
 
 if __name__ == '__main__':
-    init_db()
+    # 初始化数据库
+    try:
+        init_database()
+        logger.info("数据库初始化成功")
+    except Exception as e:
+        logger.error(f"数据库初始化失败: {e}")
+        
+    # 创建默认admin用户
+    try:
+        create_default_admin()
+    except Exception as e:
+        logger.info(f"默认用户创建失败（可能已存在）: {e}")
+    
     port = int(os.environ.get('PORT', 8081))
     debug_mode = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
