@@ -6,15 +6,21 @@
 
 import os
 import sqlite3
-import psycopg2
 from contextlib import contextmanager
 import logging
+
+try:
+    import psycopg2
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
+    psycopg2 = None
 
 logger = logging.getLogger(__name__)
 
 # 数据库类型检测
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
-USE_POSTGRESQL = DATABASE_URL.startswith('postgres://') or DATABASE_URL.startswith('postgresql://')
+USE_POSTGRESQL = (DATABASE_URL.startswith('postgres://') or DATABASE_URL.startswith('postgresql://')) and PSYCOPG2_AVAILABLE
 
 @contextmanager
 def get_db_connection(timeout=30):
@@ -24,7 +30,7 @@ def get_db_connection(timeout=30):
     """
     conn = None
     try:
-        if USE_POSTGRESQL:
+        if USE_POSTGRESQL and PSYCOPG2_AVAILABLE:
             # PostgreSQL连接
             conn = psycopg2.connect(DATABASE_URL)
             conn.autocommit = False
@@ -52,7 +58,7 @@ def get_db_connection(timeout=30):
 def init_database():
     """初始化数据库表结构"""
     
-    if USE_POSTGRESQL:
+    if USE_POSTGRESQL and PSYCOPG2_AVAILABLE:
         init_postgresql()
     else:
         init_sqlite()
@@ -190,7 +196,7 @@ def init_sqlite():
 
 def get_database_info():
     """获取当前数据库信息"""
-    if USE_POSTGRESQL:
+    if USE_POSTGRESQL and PSYCOPG2_AVAILABLE:
         return {
             'type': 'PostgreSQL',
             'url': DATABASE_URL[:50] + '...' if len(DATABASE_URL) > 50 else DATABASE_URL,
