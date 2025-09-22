@@ -1,0 +1,32 @@
+[Unit]
+Description=Guming Timesheet Management System
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=exec
+User=guming
+Group=guming
+WorkingDirectory=/home/guming/timesheet
+Environment=PATH=/home/guming/timesheet/venv/bin
+EnvironmentFile=/home/guming/timesheet/.env
+ExecStart=/home/guming/timesheet/venv/bin/gunicorn --workers 2 --bind 127.0.0.1:5000 --timeout 60 --keep-alive 2 --max-requests 1000 --max-requests-jitter 50 app:app
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=guming-timesheet
+
+# 安全配置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/guming/timesheet
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+[Install]
+WantedBy=multi-user.target

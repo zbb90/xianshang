@@ -6134,6 +6134,16 @@ if __name__ == '__main__':
     try:
         init_db()  # 使用已存在的函数
         logger.info("数据库初始化成功")
+        
+        # 在生产环境中自动初始化基础数据
+        if os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('DATABASE_URL'):
+            try:
+                from init_production_data import main as init_production
+                init_production()
+                logger.info("生产环境数据初始化完成")
+            except Exception as e:
+                logger.warning(f"生产环境数据初始化失败: {e}")
+                
     except Exception as e:
         logger.error(f"数据库初始化失败: {e}")
     
